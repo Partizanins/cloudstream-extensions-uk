@@ -1,9 +1,7 @@
 ﻿package com.lagradost
 
 import com.fasterxml.jackson.databind.json.JsonMapper
-import com.google.gson.Gson
-import com.google.gson.JsonArray
-import com.google.gson.reflect.TypeToken
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.HomePageResponse
@@ -44,7 +42,6 @@ class UATuTFunProvider : MainAPI() {
     private val searchMovieSelector = "div.poster.grid-item"
     private val otherDataSelector = "div.bslide__desc > ul.bslide__text"
     private val simpleDateFormat = SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-    private val gson = Gson()
     private val mapper = JsonMapper.builder()
         .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
         .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
@@ -100,6 +97,7 @@ class UATuTFunProvider : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
+//        Log.d("DEBUG load", "Url: $url")
         val document = app.get(url).document
 
         return when (val tvType = getTvType(url)) {
@@ -154,13 +152,10 @@ class UATuTFunProvider : MainAPI() {
                     ).last().let(callback)
                 } else {
                     val m3u8 = app.get(m3uUrl)
-                    val jsonArray = gson.fromJson(
-                        m3u8.text,
-                        JsonArray::class.java
-                    )
-                    val m3uFileUrl = jsonArray.firstOrNull()?.asJsonObject?.get("file")
+                    val jsonArray = mapper.readTree(m3u8.text)
+                    val m3uFileUrl = jsonArray.firstOrNull { nodes -> !nodes.get("file").isNull }
 
-                    val m3u8DirectFileUrl = m3uFileUrl.toString().replace("\"", "")
+                    val m3u8DirectFileUrl = m3uFileUrl?.get("file")?.textValue() ?: ""
                     //todo add quality
                     M3u8Helper.generateM3u8(
                         source = "uatut",
@@ -205,7 +200,7 @@ class UATuTFunProvider : MainAPI() {
             this.select(posterUrlSelector)
                 .attr("data-src")
         )
-        Log.d("DEBUG MovieSearchResponse", "seriesUrl: $posterUrl")
+//        Log.d("DEBUG MovieSearchResponse", "seriesUrl: $posterUrl")
 
         return newMovieSearchResponse(title, url, TvType.Movie) {
             this.posterUrl = posterUrl
@@ -306,14 +301,11 @@ class UATuTFunProvider : MainAPI() {
 
     private fun getObjectFromJson(m3uData: String): List<SeriesJsonDataModel> {
         val result = mutableListOf<SeriesJsonDataModel>()
-        var itemType = object : TypeToken<List<SeriesJsonDataModel>>() {}.type
-        val items: List<SeriesJsonDataModel> =
-            gson.fromJson(m3uData, itemType)
-
+        val items: List<SeriesJsonDataModel> = mapper.readValue<List<SeriesJsonDataModel>>(m3uData)
         val seriesDubCheck = items.first()?.seriesDubName ?: ""
+
         if (seriesDubCheck.isEmpty()) {
-            itemType = object : TypeToken<List<com.lagradost.model.Episode>>() {}.type
-            val episodesList: List<com.lagradost.model.Episode> = gson.fromJson(m3uData, itemType)
+            val episodesList: List<com.lagradost.model.Episode> = mapper.readValue(m3uData)
             episodesList.forEach { episode ->
                 val episodeName = episode?.name ?: ""
                 if (episodeName.isEmpty()) {
@@ -434,15 +426,13 @@ class UATuTFunProvider : MainAPI() {
         seasonName: String,
         episodeName: String
     ): String {
-        Log.d("DEBUG getEpisodePosterUrl", "seriesUrl: $seriesUrl")
+//        Log.d("DEBUG getEpisodePosterUrl", "seriesUrl: $seriesUrl")
         val seriesJsonDataModel =
             getSeriesJsonDataModelByEpisodeName(episodeName, seasonName, seriesUrl)
         if (seriesJsonDataModel.isEmpty()) {
             return ""
         }
-        val poster = seriesJsonDataModel.first().seasons.first().episodes.first().poster
-        Log.d("DEBUG getEpisodePosterUrl", "poster: $poster")
-        return poster
+        return seriesJsonDataModel.first().seasons.first().episodes.first().poster
     }
 
     private suspend fun getSeriesJsonDataModelByEpisodeName(
@@ -538,11 +528,8 @@ class UATuTFunProvider : MainAPI() {
             ?.replace(yearIndexTag, "")?.trim()?.toInt() ?: 0
     }
 
-    private fun getPagePosterUrl(document: Document): String {
-        val fixUrl = fixUrl(document.select("div.bslide__poster > a > img").attr("src"))
-        Log.d("DEBUG getPagePosterUrl", "fixUrl: $fixUrl")
-        return fixUrl
-    }
+    private fun getPagePosterUrl(document: Document) =
+        fixUrl(document.select("div.bslide__poster > a > img").attr("src"))
 
     private fun getPageEngTitle(document: Document) = document.select("div.bslide__subtitle").text()
 
