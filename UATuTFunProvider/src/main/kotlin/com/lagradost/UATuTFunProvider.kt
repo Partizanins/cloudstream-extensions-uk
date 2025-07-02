@@ -2,7 +2,7 @@
 
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.lagradost.api.Log
+//import com.lagradost.api.Log
 import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
@@ -278,7 +278,7 @@ class UATuTFunProvider : MainAPI() {
 
         val text = if (m3uUrl.startsWith("http") && m3uUrl.endsWith(".txt")) {
             app.get(m3uUrl).text
-        } else if (!m3uUrl.isEmpty()) {
+        } else if (m3uUrl.isNotEmpty()) {
             return try {
                 getObjectFromJson(m3uUrl)
             } catch (_: Exception) {
@@ -296,7 +296,11 @@ class UATuTFunProvider : MainAPI() {
         val m3uData = removeSuffix.replace("\\", "")
 //        Log.d("DEBUG getSeriesJsonDataModel", "Text: $text")
         //find all episodes and seasons
-        return getObjectFromJson(m3uData)
+        return try {
+            getObjectFromJson(m3uData)
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     private fun getObjectFromJson(m3uData: String): List<SeriesJsonDataModel> {
