@@ -108,9 +108,9 @@ class UATuTFunProvider : MainAPI() {
             TvType.Anime -> {
                 val episodes = getEpisodes(document)
 
-                if (episodes.isNotEmpty()) {
+                if (episodes.isNotEmpty()) {//multiple episodes
                     getNewTvSeriesLoadResponse(document, tvType, url, episodes)
-                } else {
+                } else {//one episode
                     getNewMovieLoadResponse(document, tvType, url)
                 }
             }
@@ -156,9 +156,10 @@ class UATuTFunProvider : MainAPI() {
                     val m3uFileUrl = jsonArray.firstOrNull { nodes -> !nodes.get("file").isNull }
 
                     val m3u8DirectFileUrl = m3uFileUrl?.get("file")?.textValue() ?: ""
+                    val dubName = getMovieDubName(document)
                     //todo add quality
                     M3u8Helper.generateM3u8(
-                        source = "uatut",
+                        source = dubName,
                         streamUrl = m3u8DirectFileUrl,
                         referer = "https://uk.uatut.fun/"
                     ).forEach(callback)
@@ -181,7 +182,7 @@ class UATuTFunProvider : MainAPI() {
                 } else {
                     val sourceDubName = jsonDataModel.first().seriesDubName
                     val m3u8DirectFileUrl =
-                        jsonDataModel.first().seasons.first().episodes.first().file
+                        jsonDataModel.first().seasons.first().episodes.first().file//TODO ADD all seasons
                     M3u8Helper.generateM3u8(
                         source = sourceDubName,
                         streamUrl = m3u8DirectFileUrl,
@@ -191,6 +192,18 @@ class UATuTFunProvider : MainAPI() {
                 }
             }
         }
+    }
+
+    private fun getMovieDubName(document: Document): String {
+        val keyword = "Озвучення:"
+        val delimiter = "|"
+        val text = document.select("ul.pmovie__list").select("li")
+            .firstOrNull { it.text().contains(keyword) }?.text() ?: ""
+
+        if (text.contains(delimiter)) {
+            return text.substringAfterLast(delimiter).trim()
+        }
+        return text.replace(keyword, "").trim()
     }
 
     private fun Element.toSearchResponse(): MovieSearchResponse {
