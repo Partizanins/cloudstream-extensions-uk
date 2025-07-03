@@ -141,12 +141,12 @@ class UATuTFunProvider : MainAPI() {
             TvType.Movie -> {//movie cartoon
                 val document = app.get(data).document
                 val m3uUrl = getM3uUrl(document)
+                val dubName = getMovieDubName(document)
 
 
                 if (m3uUrl.endsWith(".m3u8")) {
-                    //todo add quality
                     M3u8Helper.generateM3u8(
-                        source = "uatut",
+                        source = dubName,
                         streamUrl = m3uUrl,
                         referer = "https://uk.uatut.fun/"
                     ).last().let(callback)
@@ -156,8 +156,7 @@ class UATuTFunProvider : MainAPI() {
                     val m3uFileUrl = jsonArray.firstOrNull { nodes -> !nodes.get("file").isNull }
 
                     val m3u8DirectFileUrl = m3uFileUrl?.get("file")?.textValue() ?: ""
-                    val dubName = getMovieDubName(document)
-                    //todo add quality
+
                     M3u8Helper.generateM3u8(
                         source = dubName,
                         streamUrl = m3u8DirectFileUrl,
@@ -182,7 +181,7 @@ class UATuTFunProvider : MainAPI() {
                 } else {
                     val sourceDubName = jsonDataModel.first().seriesDubName
                     val m3u8DirectFileUrl =
-                        jsonDataModel.first().seasons.first().episodes.first().file//TODO ADD all seasons
+                        jsonDataModel.first().seasons.first().episodes.first().file
                     M3u8Helper.generateM3u8(
                         source = sourceDubName,
                         streamUrl = m3u8DirectFileUrl,
@@ -293,27 +292,39 @@ class UATuTFunProvider : MainAPI() {
             app.get(m3uUrl).text
         } else if (m3uUrl.isNotEmpty()) {
             return try {
-                getObjectFromJson(m3uUrl)
-            } catch (_: Exception) {
+                val stringToJson = stringToJson(m3uUrl)
+                getObjectFromJson(stringToJson)
+            } catch (e: Exception) {
+                System.err.println(e)
                 emptyList()
             }
         } else {
             return emptyList()
         }
 
-        val removeSuffix = if (text.startsWith("\"")) {
-            text.replaceFirst("\"", "").removeSuffix("\"")
-        } else {
-            text
-        }
-        val m3uData = removeSuffix.replace("\\", "")
+        val m3uData = stringToJson(text)
+
+
 //        Log.d("DEBUG getSeriesJsonDataModel", "Text: $text")
         //find all episodes and seasons
         return try {
             getObjectFromJson(m3uData)
         } catch (e: Exception) {
+            System.err.println(e)
             emptyList()
         }
+    }
+
+    private fun stringToJson(text: String): String {
+        var m3uData = text.replace("\\", "")
+
+        if (m3uData.startsWith("\"")) {
+            m3uData = m3uData.replaceFirst("\"", "")
+        }
+        if (m3uData.endsWith("\"")) {
+            m3uData = m3uData.replaceAfterLast("\"", "")
+        }
+        return m3uData
     }
 
     private fun getObjectFromJson(m3uData: String): List<SeriesJsonDataModel> {
@@ -485,9 +496,10 @@ class UATuTFunProvider : MainAPI() {
         if (foundEpisode == null) {
             return emptyList()
         }
+        val seriesDubName = seriesJsonDataModel.first().seriesDubName
         return listOf(
             SeriesJsonDataModel(
-                "",
+                seriesDubName,
                 listOf(Season("", listOf(foundEpisode)))
             )
         )
