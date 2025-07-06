@@ -1,16 +1,30 @@
-import com.lagradost.cloudstream3.gradle.CloudstreamExtension
 import com.android.build.gradle.BaseExtension
+import com.lagradost.cloudstream3.gradle.CloudstreamExtension
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        // Shitpack repo which contains our tools and dependencies
+        maven("https://jitpack.io")
+    }
+
     dependencies {
-        classpath(libs.recloudstream.gradle)
+        classpath("com.android.tools.build:gradle:8.7.3")
+        // Cloudstream gradle plugin which makes everything work and builds plugins
+        classpath("com.github.recloudstream:gradle:-SNAPSHOT")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0")
     }
 }
 
-plugins {
-    alias(libs.plugins.android.application) apply false
-    alias(libs.plugins.android.library) apply false
-    alias(libs.plugins.kotlin) apply false
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven("https://jitpack.io")
+    }
 }
 
 fun Project.cloudstream(configuration: CloudstreamExtension.() -> Unit) = extensions.getByName<CloudstreamExtension>("cloudstream").configuration()
@@ -36,7 +50,6 @@ subprojects {
             minSdk = 21
             compileSdkVersion(35)
             targetSdk = 35
-
         }
 
         compileOptions {
@@ -44,60 +57,37 @@ subprojects {
             targetCompatibility = JavaVersion.VERSION_1_8
         }
 
-        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-            kotlinOptions {
-                jvmTarget = "1.8" // Required
-                // Disables some unnecessary features
-                freeCompilerArgs = freeCompilerArgs +
-                        "-Xno-call-assertions" +
-                        "-Xno-param-assertions" +
-                        "-Xno-receiver-assertions"
+        tasks.withType<KotlinJvmCompile> {
+            compilerOptions {
+                jvmTarget.set(JvmTarget.JVM_1_8) // Required
+                freeCompilerArgs.addAll(
+                    "-Xno-call-assertions",
+                    "-Xno-param-assertions",
+                    "-Xno-receiver-assertions"
+                )
             }
         }
     }
 
     dependencies {
-        val apk by configurations
+        val cloudstream by configurations
         val implementation by configurations
-        val libs = rootProject.libs
-        val apkTasks = listOf("deployWithAdb", "build", "makePluginsJson")
-        val useApk = gradle.startParameter.taskNames.any { taskName ->
-            apkTasks.any { apkTask ->
-                taskName.contains(apkTask, ignoreCase = true)
-            }
-        }
 
-        // If the task is specifically to compile the app then use the stubs, otherwise us the library.
-        if (useApk) {
-            // Stubs for all Cloudstream classes
-            apk(libs.cloudstream3)
-        } else {
-            // For running locally
-            implementation(libs.cloudstreamapi)
-        }
+        // Stubs for all cloudstream classes
+        cloudstream("com.lagradost:cloudstream3:pre-release")
 
-        // these dependencies can include any of those which are added by the app,
-        // but you dont need to include any of them if you dont need them
-        // https://github.com/recloudstream/cloudstream/blob/master/app/build.gradle
-        implementation(kotlin("stdlib")) // adds standard kotlin features, like listOf, mapOf etc
-        implementation(libs.nicehttp) // http library
-        implementation(libs.jsoup) // html parser
-    }
-
-    tasks.withType<Test>().configureEach {
-        if (name == "testReleaseUnitTest") {
-            ignoreFailures = true // ignore fail test
-        }
+        // These dependencies can include any of those which are added by the app,
+        // but you don't need to include any of them if you don't need them.
+        // https://github.com/recloudstream/cloudstream/blob/master/app/build.gradle.kts
+        implementation(kotlin("stdlib")) // Adds Standard Kotlin Features
+        implementation("com.github.Blatzar:NiceHttp:0.4.11") // HTTP Lib
+        implementation("org.jsoup:jsoup:1.18.3") // HTML Parser
+        // IMPORTANT: Do not bump Jackson above 2.13.1, as newer versions will
+        // break compatibility on older Android devices.
+        implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.1") // JSON Parser
     }
 }
 
-tasks.register<Delete>("clean") {
-    delete(getLayout().buildDirectory)
-}
-
-tasks.register<TestReport>("testReport") {
-    description = "Aggregate all test results as a HTML report"
-    group = "Build"
-    destinationDirectory = layout.buildDirectory.dir("reports/allTests")
-    testResults.from(subprojects.map { project -> project.tasks.getByName("testReleaseUnitTest") })
+task<Delete>("clean") {
+    delete(rootProject.layout.buildDirectory)
 }
