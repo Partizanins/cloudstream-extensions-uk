@@ -52,10 +52,10 @@ class HdRezkaCoProvider : MainAPI() {
     // Sections
     override val mainPage = mainPageOf(
         "$mainUrl/page/" to "Новинки",
-        "$mainUrl/films/" to "Фільми",
-        "$mainUrl/series/" to "Серіали",
-        "$mainUrl/cartoons/" to "Мультфільми",
-        "$mainUrl/animation/" to "Аніме"
+        "$mainUrl/films/page/" to "Фільми",
+        "$mainUrl/series/page/" to "Серіали",
+        "$mainUrl/cartoons/page/" to "Мультфільми",
+        "$mainUrl/animation/page/" to "Аніме"
     )
 
 
