@@ -20,7 +20,6 @@ dependencies {
         // For running locally
         implementation("com.github.Blatzar:CloudstreamApi:0.1.6")
     }
-
     // https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind
     implementation("com.fasterxml.jackson.core:jackson-databind:2.19.1")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.19.1")
@@ -35,7 +34,7 @@ cloudstream {
     language = "uk"
     // All of these properties are optional, you can safely remove them
 
-    description = "uatut.fun - практичний та ексклюзивний кінотеатр для перегляду відео у комфортній обстановці."
+    description = "hdrezka.co - Ми створили зручний та унікальний у своєму роді кінотеатр для перегляду відео в комфортних для тебе умовах.."
     authors = listOf("CakesTwix")
 
     /**
@@ -46,6 +45,5 @@ cloudstream {
      * 3: Beta only
      * */
     status = 2 // will be 3 if unspecified
-
-    iconUrl = "https://www.google.com/s2/favicons?domain=uatut.fun&sz=%size%"
+    iconUrl = "https://www.google.com/s2/favicons?domain=hdrezka.co&sz=%size%"
 }
