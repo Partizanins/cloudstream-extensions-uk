@@ -18,6 +18,7 @@ import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.nodes.Element
 
 class HdRezkaCoProvider : MainAPI() {
@@ -27,7 +28,7 @@ class HdRezkaCoProvider : MainAPI() {
     private val posterUrlSelector = "div.b-content__inline_item  img"
 
     private val cloudflareKiller = CloudflareKiller()
-    private val interceptor = CloudflareInterceptor(cloudflareKiller)
+//    private val interceptor = CloudflareInterceptor(cloudflareKiller)
     private val mapper = JsonMapper.builder()
         .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
         .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
@@ -59,8 +60,8 @@ class HdRezkaCoProvider : MainAPI() {
 
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        Log.d("getMainPage","request.data${request.data}")
-        val document = app.get(request.data + page, interceptor = interceptor).document
+        Log.d("getMainPage", "request.data${request.data}")
+        val document = getDoc(request.data + page).document
         val first = document.select(movieSelector)
             .firstOrNull()
 
@@ -76,9 +77,9 @@ class HdRezkaCoProvider : MainAPI() {
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        Log.d("search","query: $query")
+        Log.d("search", "query: $query")
         val response =
-            app.get("$mainUrl/search/?do=search&subaction=search&q=$query", interceptor = interceptor).document
+            getDoc("$mainUrl/search/?do=search&subaction=search&q=$query").document
         val map = response.select(movieSelector).map {
             it.toSearchResponse()
         }
@@ -114,5 +115,17 @@ class HdRezkaCoProvider : MainAPI() {
         return newMovieSearchResponse(title, url, TvType.Movie) {
             this.posterUrl = posterUrl
         }
+    }
+
+    private suspend fun getDoc(url: String): NiceResponse {
+        val response = app.get(url)
+        val doc = response.document
+        Log.d("CloudflareInterceptor", doc.text())
+        Log.d("CloudflareInterceptor", "response.code ${response.code}")
+        if (response.code == 403) {
+            return app.get(url, interceptor = cloudflareKiller)
+        }
+
+        return response
     }
 }
