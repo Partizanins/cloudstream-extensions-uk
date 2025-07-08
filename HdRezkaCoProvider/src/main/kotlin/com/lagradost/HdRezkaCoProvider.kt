@@ -27,7 +27,6 @@ class HdRezkaCoProvider : MainAPI() {
     private val titleSelector = "div.b-content__inline_item-link > a"
     private val posterUrlSelector = "div.b-content__inline_item  img"
 
-    private val cloudflareKiller = CloudflareKiller()
 //    private val interceptor = CloudflareInterceptor(cloudflareKiller)
     private val mapper = JsonMapper.builder()
         .configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
@@ -123,7 +122,7 @@ class HdRezkaCoProvider : MainAPI() {
         Log.d("CloudflareInterceptor", doc.text())
         Log.d("CloudflareInterceptor", "response.code ${response.code}")
         if (response.code == 403) {
-            return app.get(url, interceptor = cloudflareKiller)
+            return app.get(url, interceptor = CloudflareKiller())
         }
 
         return response
