@@ -59,6 +59,7 @@ class HdRezkaCoProvider : MainAPI() {
 
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        Log.d("getMainPage","request.data${request.data}")
         val document = app.get(request.data + page, interceptor = interceptor).document
         val first = document.select(movieSelector)
             .firstOrNull()
