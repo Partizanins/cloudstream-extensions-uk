@@ -21,7 +21,7 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.nodes.Element
 
-class HdRezkaCoProvider : MainAPI() {
+class HdRezkaAgProvider : MainAPI() {
 
     private val movieSelector = "div.b-content__inline_items"
     private val titleSelector = "div.b-content__inline_item-link > a"
@@ -34,8 +34,8 @@ class HdRezkaCoProvider : MainAPI() {
         .build()
 
     // Basic Info
-    override var mainUrl = "https://hdrezka.co"
-    override var name = "HdRezkaCo"
+    override var mainUrl = "https://rezka.ag"
+    override var name = "HdRezkaAg"
     override val hasMainPage = true
     override var lang = "uk"
 

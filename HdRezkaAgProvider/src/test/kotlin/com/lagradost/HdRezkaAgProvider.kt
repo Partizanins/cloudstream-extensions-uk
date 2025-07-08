@@ -4,10 +4,10 @@ import com.lagradost.cloudstreamtest.ProviderTester
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
-class HdRezkaCoProvider {
+class HdRezkaAgProviderTest {
     @Test
     fun testProvider() = runBlocking {
-        val providerTester = ProviderTester(HdRezkaCoProvider())
+        val providerTester = ProviderTester(HdRezkaAgProvider())
         providerTester.testAll()
     }
 }
