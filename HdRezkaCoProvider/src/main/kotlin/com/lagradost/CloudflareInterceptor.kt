@@ -16,7 +16,8 @@ class CloudflareInterceptor(private val cloudflareKiller: CloudflareKiller) : In
         val response = chain.proceed(request)
         val doc = Jsoup.parse(response.peekBody(10 * 1024).string())
         Log.d("CloudflareInterceptor", doc.text())
-        if (response.code == 503 || doc.selectFirst("meta[name='cloudflare']") != null) {
+        Log.d("CloudflareInterceptor","response.code ${response.code}")
+        if (response.code == 403) {
             return cloudflareKiller.intercept(chain)
         }
 
