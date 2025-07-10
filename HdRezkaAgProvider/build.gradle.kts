@@ -34,7 +34,7 @@ cloudstream {
     language = "uk"
     // All of these properties are optional, you can safely remove them
 
-    description = "hdrezka.co - Ми створили зручний та унікальний у своєму роді кінотеатр для перегляду відео в комфортних для тебе умовах.."
+    description = "rezka.ag - Ми створили зручний та унікальний у своєму роді кінотеатр для перегляду відео в комфортних для тебе умовах.."
     authors = listOf("CakesTwix")
 
     /**
@@ -45,5 +45,5 @@ cloudstream {
      * 3: Beta only
      * */
     status = 2 // will be 3 if unspecified
-    iconUrl = "https://www.google.com/s2/favicons?domain=hdrezka.co&sz=%size%"
+    iconUrl = "https://www.google.com/s2/favicons?domain=rezka.ag&sz=%size%"
 }
