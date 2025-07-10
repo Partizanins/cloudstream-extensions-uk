@@ -20,14 +20,30 @@ import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
 class HdRezkaAgProvider : MainAPI() {
 
+    private val headers =
+        mapOf("user-agent" to "Mozilla/5.0 (Windows NT 10.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 YaBrowser/25.6.0.0 Safari/537.36")
+
+
     private val dubList =
-        listOf("украинский (1+1)", "оригинал (+субтитры)", "украинский", "украинский многоголосый",
-            "amanogawa" ,"glass moon","fanvoxua","украинский дубляж","украинский двухголосый","artymko","украинский (amc)")
+        listOf(
+            "украинский (1+1)",
+            "оригинал (+субтитры)",
+            "украинский",
+            "украинский многоголосый",
+            "amanogawa",
+            "glass moon",
+            "fanvoxua",
+            "украинский дубляж",
+            "украинский двухголосый",
+            "artymko",
+            "украинский (amc)"
+        )
     private val movieSelector = "div.b-content__inline_items"
     private val titleSelector = "div.b-content__inline_item-link > a"
     private val posterUrlSelector = "div.b-content__inline_item  img"
@@ -65,7 +81,7 @@ class HdRezkaAgProvider : MainAPI() {
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         Log.d("getMainPage", "request.data${request.data}")
-        val document = app.get(request.data + page).document
+        val document = getDocument(request.data + page).document
         val first = document.select(movieSelector)
             .firstOrNull()
 
@@ -80,6 +96,10 @@ class HdRezkaAgProvider : MainAPI() {
         }
     }
 
+    private suspend fun getDocument(
+        url: String,
+    ): NiceResponse = app.get(url, headers)
+
     override suspend fun search(query: String): List<SearchResponse> {
         Log.d("search", "query: $query")
         val response =
@@ -92,7 +112,7 @@ class HdRezkaAgProvider : MainAPI() {
 
     override suspend fun load(url: String): LoadResponse {
         Log.d("DEBUG load", "Url: $url")
-        val document = app.get(url).document
+        val document = getDocument(url).document
         val tvType = getTvType(url)
 
         return when (tvType) {
