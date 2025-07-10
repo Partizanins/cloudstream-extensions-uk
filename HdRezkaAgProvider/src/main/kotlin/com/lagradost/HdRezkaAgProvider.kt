@@ -23,6 +23,7 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import kotlin.math.absoluteValue
 
 class HdRezkaAgProvider : MainAPI() {
 
@@ -163,11 +164,6 @@ class HdRezkaAgProvider : MainAPI() {
         tvType: TvType,
         url: String
     ): LoadResponse {
-//        val contentHasUaDub = contentHasUaDub(document)
-//        if (contentHasUaDub.isEmpty()) {
-//            return newTvSeriesLoadResponse("", "", tvType, emptyList())
-//        }
-
         val episodes = getEpisodes(document)
         val title = getPageTitle(document)
         val engTitle = getPageEngTitle(document)
@@ -209,71 +205,82 @@ class HdRezkaAgProvider : MainAPI() {
     }
 
     private fun getActors(document: Document): List<String> {
-        TODO("Not yet implemented")
+        return document.select("div.persons-list-holder").component2()
+            .select("span.item")
+            .map { it.select("span[itemprop=\"name\"]").text() }
     }
 
     private fun getTags(document: Document): List<String> {
-        TODO("Not yet implemented")
+        return document.select("table.b-post__info")
+            .select("span[itemprop=\"genre\"]").map { it.text() }
     }
 
     private fun getTrailerUrL(document: Document): String {
-        TODO("Not yet implemented")
+//        return document.select("").text()
+        return ""
     }
 
     private fun getDuration(document: Document): Int {
-        TODO("Not yet implemented")
+        return document.select("table.b-post__info")
+            .select("td[itemprop=\"duration\"]").text().filter { it.isDigit() }.toInt()
     }
 
     private fun getRating(document: Document): Int {
-        TODO("Not yet implemented")
+        return document.select("table.b-post__info")
+            .select("td > span.b-post__info_rates.imdb")
+            .select("span.bold").text().trim().toDoubleOrNull()
+            ?.absoluteValue?.times(1000f)?.toInt() ?: 0
     }
 
     private fun getDescription(document: Document): String {
-        TODO("Not yet implemented")
+        return document.select("div.b-post__description_text").text()
     }
 
     private fun getYear(document: Document): Int {
-        TODO("Not yet implemented")
+        val text = document.select("table.b-post__info").select("td")
+            .first { it.text().contains("Дата выхода") }.parent()?.select("td")?.component2()
+            ?.text()
+
+        if (text.isNullOrEmpty()) {
+            return -1
+        }
+        return text.filter { it.isDigit() }.reversed().take(4).reversed().toInt()
+
     }
 
     private fun getPagePosterUrl(document: Document): String {
-        TODO("Not yet implemented")
+        return document.select("div.b-post__infotable_left").select("a").attr("href")
     }
 
     private fun getPageEngTitle(document: Document): String {
-        TODO("Not yet implemented")
+        return document.select("div.b-post__origtitle").text()
     }
 
     private fun getPageTitle(document: Document): String {
-        TODO("Not yet implemented")
+        return document.select("div.b-post__title").text()
     }
 
-    private suspend fun getEpisodes(document: Document): List<Episode> {
+    private fun getEpisodes(document: Document): List<Episode> {
         val player = document.select("div#player.b-player")
         if (player.isEmpty()) {
             return emptyList()
         }
 
-        val seasons = player.select("ul#simple-seasons-tabs").select("a").map { aSeason ->
-            val result = mutableListOf<Episode>()
-            result.addAll(getEpisodes(aSeason))
-
-
-
-            result.toList()
+        return player.select("div#simple-episodes-tabs").select("ul").flatMap { aSeason ->
+            getEpisodes(aSeason)
         }
-        TODO("Not yet implemented")
     }
 
-    private suspend fun getEpisodes(document: Element): List<Episode> {
-        val seasonUrl = document.select("a").attr("href")
-        val seasonDocument = app.get(seasonUrl).document
-        val player = seasonDocument.select("div#player.b-player")
-        player.select("div#simple-episodes-tabs").select("ul").map {
+    private fun getEpisodes(document: Element): List<Episode> {
 
-        }
-//        println(seasonDocument)
-        TODO("Not yet implemented")
+        return document.select("a")
+            .map { element ->
+                val data = element.attr("href")
+                val episodeName = element.text()
+                val season = element.attr("data-season_id").toInt()
+                val episode = element.attr("data-episode_id").toInt()
+                Episode(data, episodeName, season, episode, "", -1, "", -1)
+            }
     }
 
     private fun getTvType(url: String): TvType {
