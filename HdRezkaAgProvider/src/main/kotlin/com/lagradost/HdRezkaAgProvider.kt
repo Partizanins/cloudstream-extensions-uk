@@ -318,10 +318,10 @@ class HdRezkaAgProvider : MainAPI() {
                 .attr("src")
         )
 
-        val contentHasUaDub = contentHasUaDub(app.get(url).document)
-        if (contentHasUaDub.isEmpty()) { // filter only ua dub
-            return newMovieSearchResponse("", "", TvType.Movie)
-        }
+//        val contentHasUaDub = contentHasUaDub(app.get(url).document)
+//        if (contentHasUaDub.isEmpty()) { // filter only ua dub
+//            return newMovieSearchResponse("", "", TvType.Movie)
+//        }//todo filter only ua dub
 
         return newMovieSearchResponse(title, url, TvType.Movie) {
             this.posterUrl = posterUrl
