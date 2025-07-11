@@ -107,7 +107,7 @@ class HdRezkaAgProvider : MainAPI() {
     override suspend fun search(query: String): List<SearchResponse> {
         Log.d("search", "query: $query")
         val response =
-            app.get("$mainUrl/search/?do=search&subaction=search&q=$query").document
+            getDocument("$mainUrl/search/?do=search&subaction=search&q=$query").document
         val map = response.select(movieSelector).map {
             it.toSearchResponse()
         }
