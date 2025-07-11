@@ -1,7 +1,9 @@
 ﻿package com.lagradost
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.lagradost.api.Log
+import com.lagradost.cloudstream3.Actor
 import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
@@ -21,6 +23,7 @@ import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.nicehttp.NiceResponse
+import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import kotlin.math.absoluteValue
@@ -172,7 +175,7 @@ class HdRezkaAgProvider : MainAPI() {
         val description = getDescription(document)
         val rating = getRating(document)
         val duration = getDuration(document)
-        val trailerUrl = getTrailerUrL(document)
+        val trailerUrl = getTrailerUrL(url)
         val tags = getTags(document)
         val actors = getActors(document)
 
@@ -204,10 +207,13 @@ class HdRezkaAgProvider : MainAPI() {
         return dubs
     }
 
-    private fun getActors(document: Document): List<String> {
-        return document.select("div.persons-list-holder").component2()
-            .select("span.item")
-            .map { it.select("span[itemprop=\"name\"]").text() }
+    private fun getActors(document: Document): List<Actor> {
+        return document.select("table.b-post__info > tbody > tr:last-child span.item").mapNotNull {
+            Actor(
+                it.selectFirst("span[itemprop=name]")?.text() ?: return@mapNotNull null,
+                it.selectFirst("span[itemprop=actor]")?.attr("data-photo")
+            )
+        }
     }
 
     private fun getTags(document: Document): List<String> {
@@ -215,9 +221,18 @@ class HdRezkaAgProvider : MainAPI() {
             .select("span[itemprop=\"genre\"]").map { it.text() }
     }
 
-    private fun getTrailerUrL(document: Document): String {
-//        return document.select("").text()
-        return ""
+    private suspend fun getTrailerUrL(url: String): String {
+        val id = url.split("/").last().split("-").first()
+        val post = app.post(
+            "https://rezka.ag/engine/ajax/gettrailervideo.php",
+            data = mapOf("id" to id),
+            referer = url
+        )
+        val readTree = ObjectMapper().readTree(post.text)
+        val iframe = readTree.get("code")
+        val parse = Jsoup.parse(iframe.textValue())
+        return parse.select("iframe").attr("src")
+
     }
 
     private fun getDuration(document: Document): Int {
