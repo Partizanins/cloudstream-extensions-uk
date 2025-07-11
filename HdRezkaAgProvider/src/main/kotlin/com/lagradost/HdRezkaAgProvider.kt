@@ -48,7 +48,7 @@ class HdRezkaAgProvider : MainAPI() {
             "artymko",
             "украинский (amc)"
         )
-    private val movieSelector = "div.b-content__inline_items"
+    private val movieSelector = "div.b-content__inline_items > div"
     private val titleSelector = "div.b-content__inline_item-link > a"
     private val posterUrlSelector = "div.b-content__inline_item  img"
 
@@ -108,10 +108,10 @@ class HdRezkaAgProvider : MainAPI() {
         Log.d("search", "query: $query")
         val response =
             getDocument("$mainUrl/search/?do=search&subaction=search&q=$query").document
-        val map = response.select(movieSelector).map {
+        return response.select(movieSelector).map {
             it.toSearchResponse()
         }
-        return map
+
     }
 
     override suspend fun load(url: String): LoadResponse {
