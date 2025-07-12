@@ -21,6 +21,7 @@ import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
+import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.Jsoup
@@ -115,7 +116,7 @@ class HdRezkaAgProvider : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        Log.d("DEBUG load", "Url: $url")
+        Log.d("load", "Url: $url")
         val document = getDocument(url).document
         val tvType = getTvType(url)
 
@@ -167,7 +168,7 @@ class HdRezkaAgProvider : MainAPI() {
         tvType: TvType,
         url: String
     ): LoadResponse {
-        val episodes = getEpisodes(document)
+        val episodes = getEpisodes(document, url)
         val title = getPageTitle(document)
         val engTitle = getPageEngTitle(document)
         val posterUrl = getPagePosterUrl(document)
@@ -222,7 +223,7 @@ class HdRezkaAgProvider : MainAPI() {
     }
 
     private suspend fun getTrailerUrL(url: String): String {
-        val id = url.split("/").last().split("-").first()
+        val id = getId(url)
         val post = app.post(
             "https://rezka.ag/engine/ajax/gettrailervideo.php",
             data = mapOf("id" to id),
@@ -233,6 +234,10 @@ class HdRezkaAgProvider : MainAPI() {
         val parse = Jsoup.parse(iframe.textValue())
         return parse.select("iframe").attr("src")
 
+    }
+
+    private fun getId(url: String): String {
+        return url.split("/").last().split("-").first()
     }
 
     private fun getDuration(document: Document): Int {
@@ -275,27 +280,53 @@ class HdRezkaAgProvider : MainAPI() {
         return document.select("div.b-post__title").text()
     }
 
-    private fun getEpisodes(document: Document): List<Episode> {
+    private fun getEpisodes(document: Document, url: String): List<Episode> {
         val player = document.select("div#player.b-player")
         if (player.isEmpty()) {
             return emptyList()
         }
 
-        return player.select("div#simple-episodes-tabs").select("ul").flatMap { aSeason ->
-            getEpisodes(aSeason)
+        val episodes = player.select("div#simple-episodes-tabs").select("ul").flatMap { aSeason ->
+            getEpisodesFromSeason(aSeason, url)
         }
+
+        for (episode in episodes) {
+            val url = episode.data
+            episode.data = getEpisodeData(url,document,episode)
+        }
+
+        return episodes
     }
 
-    private fun getEpisodes(document: Element): List<Episode> {
+    private fun getEpisodesFromSeason(document: Element, url: String): List<Episode> {
 
-        return document.select("a")
-            .map { element ->
-                val data = element.attr("href")
+        val select = document.select("a")
+        if (select.isNotEmpty()) {
+            return select.map { element ->
+                val data = {
+                    element.attr("href").ifEmpty {
+                        url
+                    }
+                }()
+
                 val episodeName = element.text()
                 val season = element.attr("data-season_id").toInt()
                 val episode = element.attr("data-episode_id").toInt()
                 Episode(data, episodeName, season, episode, "", -1, "", -1)
             }
+        }
+
+        return document.select("li").map { element ->
+            val data = {
+                element.attr("href").ifEmpty {
+                    url
+                }
+            }()
+            val episodeName = element.text()
+            val season = element.attr("data-season_id").toInt()
+            val episode = element.attr("data-episode_id").toInt()
+            Episode(data, episodeName, season, episode, "", -1, "", -1)
+        }
     }
 
     private fun getTvType(url: String): TvType {
@@ -342,4 +373,29 @@ class HdRezkaAgProvider : MainAPI() {
             this.posterUrl = posterUrl
         }
     }
+
+    private fun getEpisodeData(url: String, document: Document, episode: Episode): String {
+        val server = ArrayList<Map<String, String>>()
+        val data = HashMap<String, Any>()
+
+        document.select("ul#translators-list a").map { res ->
+            server.add(
+                mapOf(
+                    "translator_name" to res.text(),
+                    "translator_id" to res.attr("data-translator_id"),
+                )
+            )
+        }
+
+        data["season"] = "${episode.season}"
+        data["episode"] = "${episode.episode}"
+        data["server"] = server
+        data["action"] = "get_stream"
+        data["id"] = getId(url)
+        data["favs"] = document.selectFirst("input#ctrl_favs")?.attr("value").toString()
+        data["ref"] = url
+
+        return data.toJson()
+    }
+
 }
