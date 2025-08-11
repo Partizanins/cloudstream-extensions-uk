@@ -3,30 +3,23 @@
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.lagradost.api.Log
-import com.lagradost.cloudstream3.Actor
-import com.lagradost.cloudstream3.Episode
-import com.lagradost.cloudstream3.HomePageResponse
-import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
-import com.lagradost.cloudstream3.MainAPI
-import com.lagradost.cloudstream3.MainPageRequest
-import com.lagradost.cloudstream3.MovieSearchResponse
-import com.lagradost.cloudstream3.SearchResponse
-import com.lagradost.cloudstream3.SubtitleFile
-import com.lagradost.cloudstream3.TvType
-import com.lagradost.cloudstream3.app
-import com.lagradost.cloudstream3.fixUrl
-import com.lagradost.cloudstream3.mainPageOf
-import com.lagradost.cloudstream3.newHomePageResponse
-import com.lagradost.cloudstream3.newMovieSearchResponse
-import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
+import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.Qualities
+import com.lagradost.cloudstream3.utils.getQualityFromName
+import com.lagradost.cloudstream3.utils.newExtractorLink
+import com.lagradost.model.Data
+import com.lagradost.model.LocalSources
+import com.lagradost.model.Sources
 import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.util.Date
 import kotlin.math.absoluteValue
 
 class HdRezkaAgProvider : MainAPI() {
@@ -292,36 +285,44 @@ class HdRezkaAgProvider : MainAPI() {
 
         for (episode in episodes) {
             val url = episode.data
-            episode.data = getEpisodeData(url,document,episode)
+            episode.data = getEpisodeData(url, document, episode)
         }
 
         return episodes
     }
 
-    private fun getEpisodesFromSeason(document: Element, url: String): List<Episode> {
+    private fun getEpisodesFromSeason(
+        document: Element,
+        url: String
+    ): List<com.lagradost.cloudstream3.Episode> {
 
         val select = document.select("a")
         if (select.isNotEmpty()) {
             return select.map { element ->
-                val data = {
-                    element.attr("href").ifEmpty {
-                        url
-                    }
-                }()
+                val data = element.attr("href").ifEmpty {
+                    url
+                }
 
                 val episodeName = element.text()
                 val season = element.attr("data-season_id").toInt()
                 val episode = element.attr("data-episode_id").toInt()
-                Episode(data, episodeName, season, episode, "", -1, "", -1)
+                Episode(
+                    data,
+                    episodeName,
+                    season,
+                    episode,
+                    "",
+                    -1,
+                    "",
+                    -1
+                )
             }
         }
 
         return document.select("li").map { element ->
-            val data = {
-                element.attr("href").ifEmpty {
-                    url
-                }
-            }()
+            val data = element.attr("href").ifEmpty {
+                url
+            }
             val episodeName = element.text()
             val season = element.attr("data-season_id").toInt()
             val episode = element.attr("data-episode_id").toInt()
@@ -345,12 +346,59 @@ class HdRezkaAgProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        Log.d("DEBUG loadLinks", "Data: $data")
+        Log.d("loadLinks", "Data: $data")
 
-        return false
+        tryParseJson<Data>(data)?.let { res ->
+            if (res.server?.isEmpty() == true) {
+                val document = getDocument(res.ref ?: return@let).document
+                document.select("script").map { script ->
+                    if (script.data().contains("sof.tv.initCDNSeriesEvents(")) {
+                        val dataJson =
+                            script.data().substringAfter("false, {").substringBefore("});")
+                        tryParseJson<LocalSources>("{$dataJson}")?.let { sources ->
+                            invokeSources(
+                                this.name,
+                                sources.streams,
+                                sources.subtitle.toString(),
+                                subtitleCallback,
+                                callback
+                            )
+                        }
+                    }
+                }
+            } else {
+                res.server?.apmap { server ->
+                    app.post(
+                        url = "$mainUrl/ajax/get_cdn_series/?t=${Date().time}",
+                        data = mapOf(
+                            "id" to res.id,
+                            "translator_id" to server.translator_id,
+                            "favs" to res.favs,
+                            "is_camrip" to server.camrip,
+                            "is_ads" to server.ads,
+                            "is_director" to server.director,
+                            "season" to res.season,
+                            "episode" to res.episode,
+                            "action" to res.action,
+                        ).filterValues { it != null }.mapValues { it.value as String },
+                        referer = res.ref
+                    ).parsedSafe<Sources>()?.let { source ->
+                        invokeSources(
+                            server.translator_name.toString(),
+                            source.url,
+                            source.subtitle.toString(),
+                            subtitleCallback,
+                            callback
+                        )
+                    }
+                }
+            }
+        }
+
+        return true
     }
 
-    private suspend fun Element.toSearchResponse(): MovieSearchResponse {
+    private fun Element.toSearchResponse(): MovieSearchResponse {
         val tittleNode = this.select(titleSelector)
         val url = tittleNode.attr("href")
 
@@ -396,6 +444,122 @@ class HdRezkaAgProvider : MainAPI() {
         data["ref"] = url
 
         return data.toJson()
+    }
+
+    private suspend fun cleanCallback(
+        source: String,
+        url: String,
+        quality: String,
+        isM3u8: Boolean,
+        sourceCallback: (ExtractorLink) -> Unit
+    ) {
+        println("source:$source, url:$url, quality:$quality, isM3u8:$isM3u8, sourceCallback:$sourceCallback")
+        sourceCallback.invoke(
+            // Call with the main arguments...
+            newExtractorLink(
+                source = source,
+                name = source,
+                url = url
+            ) {
+                // ...and then use the initializer block to set the other properties.
+                referer = "$mainUrl/"
+                this.quality = getQuality(quality)
+                this.isM3u8 = isM3u8
+                headers = mapOf(
+                    "Origin" to mainUrl
+                )
+            }
+        )
+    }
+
+    private fun decryptStreamUrl(data: String): String {
+
+        fun getTrash(arr: List<String>, item: Int): List<String> {
+            val trash = ArrayList<List<String>>()
+            for (i in 1..item) {
+                trash.add(arr)
+            }
+            return trash.reduce { acc, list ->
+                val temp = ArrayList<String>()
+                acc.forEach { ac ->
+                    list.forEach { li ->
+                        temp.add(ac.plus(li))
+                    }
+                }
+                return@reduce temp
+            }
+        }
+
+        val trashList = listOf("@", "#", "!", "^", "$")
+        val trashSet = getTrash(trashList, 2) + getTrash(trashList, 3)
+        var trashString = data.replace("#h", "").split("//_//").joinToString("")
+
+        trashSet.forEach {
+            val temp = base64Encode(it.toByteArray())
+            trashString = trashString.replace(temp, "")
+        }
+
+        return base64Decode(trashString)
+
+    }
+
+
+    private suspend fun invokeSources(
+        source: String,
+        url: String,
+        subtitle: String,
+        subCallback: (SubtitleFile) -> Unit,
+        sourceCallback: (ExtractorLink) -> Unit
+    ) {
+        decryptStreamUrl(url).split(",").map { links ->
+            val quality =
+                Regex("\\[([0-9]{3,4}p\\s?\\w*?)]").find(links)?.groupValues?.getOrNull(1)
+                    ?.trim() ?: return@map null
+            links.replace("[$quality]", "").split(" or ")
+                .map {
+                    val link = it.trim()
+                    val type = if (link.contains(".m3u8")) "(Main)" else "(Backup)"
+                    cleanCallback(
+                        "$source $type",
+                        link,
+                        quality,
+                        link.contains(".m3u8"),
+                        sourceCallback,
+                    )
+                }
+        }
+
+        subtitle.split(",").map { sub ->
+            val language =
+                Regex("\\[(.*)]").find(sub)?.groupValues?.getOrNull(1) ?: return@map null
+            val link = sub.replace("[$language]", "").trim()
+            subCallback.invoke(
+                SubtitleFile(
+                    getLanguage(language),
+                    link
+                )
+            )
+        }
+    }
+
+
+    private fun getLanguage(str: String): String {
+        return when (str) {
+            "Русский" -> "Russian"
+            "Українська" -> "Ukrainian"
+            else -> str
+        }
+    }
+
+    private fun getQuality(str: String): Int {
+        return when (str) {
+            "360p" -> Qualities.P240.value
+            "480p" -> Qualities.P360.value
+            "720p" -> Qualities.P480.value
+            "1080p" -> Qualities.P720.value
+            "1080p Ultra" -> Qualities.P1080.value
+            else -> getQualityFromName(str)
+        }
     }
 
 }

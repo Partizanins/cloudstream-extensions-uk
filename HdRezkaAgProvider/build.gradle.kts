@@ -21,12 +21,12 @@ dependencies {
         implementation("com.github.Blatzar:CloudstreamApi:0.1.6")
     }
     // https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.19.1")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.19.1")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.19.2")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.19.2")
     // https://mvnrepository.com/artifact/junit/junit
-    testImplementation("junit:junit:4.13.2")
+    testImplementation(libs.junit)
 // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-coroutines-test
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     testImplementation(kotlin("test"))
 }
 
