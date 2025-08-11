@@ -191,7 +191,7 @@ class HdRezkaAgProvider : MainAPI() {
         val tags = getTags(document)
         val actors = getActors(document)
 
-        return newTvSeriesLoadResponse(title, url, tvType, episodes) {
+        val newTvSeriesLoadResponse = newTvSeriesLoadResponse(title, url, tvType, episodes) {
             this.posterUrl = posterUrl
             this.plot = description
             this.tags = tags
@@ -202,6 +202,8 @@ class HdRezkaAgProvider : MainAPI() {
             addTrailer(trailerUrl)
             this.duration = duration
         }
+        Log.d("getNewTvSeriesLoadResponse", newTvSeriesLoadResponse.toString())
+        return newTvSeriesLoadResponse
 
     }
 
@@ -229,8 +231,8 @@ class HdRezkaAgProvider : MainAPI() {
     }
 
     private fun getTags(document: Document): List<String> {
-        return document.select("table.b-post__info")
-            .select("span[itemprop=\"genre\"]").map { it.text() }
+        return document.select("table.b-post__info > tbody > tr:contains(Жанр) span[itemprop=genre]")
+            .map { it.text() }
     }
 
     private suspend fun getTrailerUrL(url: String): String {
@@ -242,7 +244,12 @@ class HdRezkaAgProvider : MainAPI() {
         )
         val readTree = ObjectMapper().readTree(post.text)
         val iframe = readTree.get("code")
-        val parse = Jsoup.parse(iframe.textValue())
+        val parse = try {
+            Jsoup.parse(iframe.textValue())
+        } catch (e: Exception) {
+            System.err.println(e)
+            return ""
+        }
         return parse.select("iframe").attr("src")
 
     }
