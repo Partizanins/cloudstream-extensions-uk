@@ -133,18 +133,22 @@ class HdRezkaAgProvider : MainAPI() {
 
         return when (tvType) {
             TvType.Movie -> {
+                Log.d("LoadMovie",url)
                 getNewMovieLoadResponse(document, tvType, url)
             }
 
             TvType.Anime -> {
+                Log.d("LoadAnime",url)
                 getNewAnimeLoadResponse(document, tvType, url)
             }
 
             TvType.Cartoon -> {
+                Log.d("LoadCartoon",url)
                 getNewCartoonLoadResponse(document, tvType, url)
             }
 
             else -> {//series
+                Log.d("LoadSeries",url)
                 getNewTvSeriesLoadResponse(document, tvType, url)
             }
         }
@@ -179,6 +183,7 @@ class HdRezkaAgProvider : MainAPI() {
         tvType: TvType,
         url: String
     ): LoadResponse {
+        Log.d("getNewTvSeriesLoadResponse","Start")
         val episodes = getEpisodes(document, url)
         val title = getPageTitle(document)
         val engTitle = getPageEngTitle(document)
