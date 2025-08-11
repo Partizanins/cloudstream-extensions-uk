@@ -312,7 +312,7 @@ class HdRezkaAgProvider : MainAPI() {
     private fun getEpisodesFromSeason(
         document: Element,
         url: String
-    ): List<com.lagradost.cloudstream3.Episode> {
+    ): List<Episode> {
 
         val select = document.select("a")
         if (select.isNotEmpty()) {
