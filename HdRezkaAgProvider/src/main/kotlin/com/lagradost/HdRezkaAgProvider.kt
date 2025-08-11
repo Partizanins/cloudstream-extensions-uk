@@ -3,15 +3,33 @@
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.lagradost.api.Log
-import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.Actor
+import com.lagradost.cloudstream3.Episode
+import com.lagradost.cloudstream3.HomePageResponse
+import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
+import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.MovieSearchResponse
+import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.apmap
+import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.base64Decode
+import com.lagradost.cloudstream3.base64Encode
+import com.lagradost.cloudstream3.fixUrl
+import com.lagradost.cloudstream3.mainPageOf
+import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.newMovieSearchResponse
+import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.M3u8Helper
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.getQualityFromName
-import com.lagradost.cloudstream3.utils.newExtractorLink
 import com.lagradost.model.Data
 import com.lagradost.model.LocalSources
 import com.lagradost.model.Sources
@@ -294,7 +312,7 @@ class HdRezkaAgProvider : MainAPI() {
     private fun getEpisodesFromSeason(
         document: Element,
         url: String
-    ): List<com.lagradost.cloudstream3.Episode> {
+    ): List<Episode> {
 
         val select = document.select("a")
         if (select.isNotEmpty()) {
@@ -455,20 +473,25 @@ class HdRezkaAgProvider : MainAPI() {
     ) {
         println("source:$source, url:$url, quality:$quality, isM3u8:$isM3u8, sourceCallback:$sourceCallback")
         sourceCallback.invoke(
-            // Call with the main arguments...
-            newExtractorLink(
-                source = source,
-                name = source,
-                url = url
-            ) {
-                // ...and then use the initializer block to set the other properties.
+            M3u8Helper.generateM3u8(
+                source = "dubName",
+                streamUrl = url,
                 referer = "$mainUrl/"
-                this.quality = getQuality(quality)
-                this.isM3u8 = isM3u8
-                headers = mapOf(
-                    "Origin" to mainUrl
-                )
-            }
+            ).first()
+            // Call with the main arguments...
+//            newExtractorLink(
+//                source = source,
+//                name = source,
+//                url = url
+//            ) {
+//                // ...and then use the initializer block to set the other properties.
+//                referer = "$mainUrl/"
+//                this.quality = getQuality(quality)
+//                this.isM3u8 = isM3u8
+//                headers = mapOf(
+//                    "Origin" to mainUrl
+//                )
+//            }
         )
     }
 
