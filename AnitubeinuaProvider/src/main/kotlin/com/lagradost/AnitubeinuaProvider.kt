@@ -183,7 +183,7 @@ class AnitubeinuaProvider : MainAPI() {
             this.year = year
             this.plot = description
             this.tags = tags
-//            this.rating = rating
+            this.rating = rating
             addTrailer(trailer)
             this.recommendations = recommendations
             addEpisodes(DubStatus.Dubbed, dubEpisodes)

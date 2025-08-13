@@ -208,7 +208,7 @@ class AnimeONProvider : MainAPI() {
                 this.showStatus = showStatus
                 this.duration = extractIntFromString(animeJSON.episodeTime)
                 this.year = animeJSON.releaseDate.toIntOrNull()
-//                this.rating = animeJSON.rating.toRatingInt()
+                this.rating = animeJSON.rating.toRatingInt()
                 addEpisodes(DubStatus.Dubbed, episodes)
                 addMalId(animeJSON.malId.toIntOrNull())
             }
@@ -232,7 +232,7 @@ class AnimeONProvider : MainAPI() {
                 this.duration = extractIntFromString(animeJSON.episodeTime)
                 this.year = animeJSON.releaseDate.toIntOrNull()
                 this.backgroundPosterUrl = backgroundImage
-//                this.rating = animeJSON.rating.toRatingInt()
+                this.rating = animeJSON.rating.toRatingInt()
                 addMalId(animeJSON.malId.toIntOrNull())
             }
         }
