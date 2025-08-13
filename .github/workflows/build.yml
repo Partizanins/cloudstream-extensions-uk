@@ -9,8 +9,9 @@ on:
   push:
     branches:
       # choose your default branch
-      - master
-      - main
+      #      - master
+      #      - main
+      - fix-build
     paths-ignore:
       - '*.md'
 
@@ -41,7 +42,7 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v2
-        
+
       - name: Build Plugins
         run: |
           cd $GITHUB_WORKSPACE/src
