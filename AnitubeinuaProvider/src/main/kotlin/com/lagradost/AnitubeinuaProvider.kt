@@ -28,17 +28,17 @@ class AnitubeinuaProvider : MainAPI() {
     override val hasQuickSearch = true
     override val hasDownloadSupport = true
     override val supportedTypes =
-            setOf(
-                    TvType.AnimeMovie,
-                    TvType.Anime,
-            )
+        setOf(
+            TvType.AnimeMovie,
+            TvType.Anime,
+        )
 
     // Sections
     override val mainPage =
-            mainPageOf(
-                    "$mainUrl/anime/page/" to "Нові",
-                    "$mainUrl/f/sort=rating/order=desc/page/" to "Популярні",
-            )
+        mainPageOf(
+            "$mainUrl/anime/page/" to "Нові",
+            "$mainUrl/f/sort=rating/order=desc/page/" to "Популярні",
+        )
 
     private var dle_login_hash = ""
 
@@ -72,14 +72,16 @@ class AnitubeinuaProvider : MainAPI() {
 
     override suspend fun search(query: String): List<SearchResponse> {
         val document =
-                app.post(
-                        url = mainUrl,
-                        data =
-                        mapOf(
-                                "do" to "search",
-                                "subaction" to "search",
-                                "story" to query.replace(" ", "+")))
-                        .document
+            app.post(
+                url = mainUrl,
+                data =
+                    mapOf(
+                        "do" to "search",
+                        "subaction" to "search",
+                        "story" to query.replace(" ", "+")
+                    )
+            )
+                .document
 
         return document.select("article.story").map { it.toSearchResponse() }
     }
@@ -92,7 +94,8 @@ class AnitubeinuaProvider : MainAPI() {
 
         // Parse info
         val title = document.selectFirst(".story_c h2")?.text()?.trim().toString()
-        val poster = mainUrl + document.selectFirst(".story_c_left span.story_post img")?.attr("src")
+        val poster =
+            mainUrl + document.selectFirst(".story_c_left span.story_post img")?.attr("src")
         val tags = someInfo.select("a[href*=/anime/]").map { it.text() }
         val year = someInfo.select("a[href*=/xfsearch/year/]").text().toIntOrNull()
 
@@ -100,7 +103,8 @@ class AnitubeinuaProvider : MainAPI() {
         val description = document.selectFirst("div.my-text")?.text()?.trim()
         // val author = someInfo.select("strong:contains(Студія:)").next().html()
         val trailer = document.selectFirst(".rcol a.rollover")?.attr("href").toString()
-        val rating = document.selectFirst(".lexington-box > div:last-child span")?.text().toRatingInt()
+        val rating =
+            document.selectFirst(".lexington-box > div:last-child span")?.text().toRatingInt()
 
         val recommendations = document.select(".horizontal ul li").map { it.toSearchResponse() }
 
@@ -110,36 +114,46 @@ class AnitubeinuaProvider : MainAPI() {
         val dubEpisodes = mutableListOf<Episode>()
         val id = url.split("/").last().split("-").first()
         dle_login_hash =
-                document
-                        .body()
-                        .selectFirst("script")!!
-                        .html()
-                        .substringAfterLast("dle_login_hash = '")
-                        .substringBefore("';")
+            document
+                .body()
+                .selectFirst("script")!!
+                .html()
+                .substringAfterLast("dle_login_hash = '")
+                .substringBefore("';")
 
         val ajax =
-                fromPlaylistAjax(
-                        "$mainUrl/engine/ajax/playlists.php?news_id=$id&xfield=playlist&user_hash=$dle_login_hash", referer = url)
+            fromPlaylistAjax(
+                "$mainUrl/engine/ajax/playlists.php?news_id=$id&xfield=playlist&user_hash=$dle_login_hash",
+                referer = url
+            )
 
         if (!ajax.isNullOrEmpty()) { // Ajax list
             ajax
-                    .groupBy { it.name }
-                    .forEach { episodes -> // Group by name
-                        episodes.value.forEach lit@{
-                            // UFDub player, drop
-                            if (it.urls.url.contains("video.ufdub")) return@lit
+                .groupBy { it.name }
+                .forEach { episodes -> // Group by name
+                    episodes.value.forEach lit@{
+                        // UFDub player, drop
+                        if (it.urls.url.contains("video.ufdub")) return@lit
 
-                            if (it.urls.isDub) {
-                                dubEpisodes.add(
-                                        Episode(
-                                                "${it.name}, $id, ${it.urls.isDub}", it.name, episode = it.numberEpisode))
-                            } else {
-                                subEpisodes.add(
-                                        Episode(
-                                                "${it.name}, $id, ${it.urls.isDub}", it.name, episode = it.numberEpisode))
-                            }
+                        if (it.urls.isDub) {
+                            dubEpisodes.add(
+                                newEpisode(url) {
+                                    data = "${it.name}, $id, ${it.urls.isDub}"
+                                    name = it.name
+                                    episode = it.numberEpisode
+                                }
+                            )
+                        } else {
+                            subEpisodes.add(
+                                newEpisode(url) {
+                                    data = "${it.name}, $id, ${it.urls.isDub}"
+                                    name = it.name
+                                    episode = it.numberEpisode
+                                }
+                            )
                         }
                     }
+                }
         } else {
             document.select("script").map { script ->
                 if (script.data().contains("RalodePlayer.init(")) {
@@ -153,11 +167,12 @@ class AnitubeinuaProvider : MainAPI() {
                             varEpisodeNumber = episodesList.last().episodeNumber?.plus(1)
                         }
                         dubEpisodes.add(
-                                Episode(
-                                        "$varEpisodeNumber, $url",
-                                        episode.episodeName,
-                                        episode = varEpisodeNumber,
-                                ))
+                            Episode(
+                                "$varEpisodeNumber, $url",
+                                episode.episodeName,
+                                episode = varEpisodeNumber,
+                            )
+                        )
                     }
                 }
             }
@@ -178,78 +193,92 @@ class AnitubeinuaProvider : MainAPI() {
 
     // It works when I click to view the series
     override suspend fun loadLinks(
-            data: String, // (Ajax) Name, id title, isDub | (Two) Episode name, url title
-            isCasting: Boolean,
-            subtitleCallback: (SubtitleFile) -> Unit,
-            callback: (ExtractorLink) -> Unit
+        data: String, // (Ajax) Name, id title, isDub | (Two) Episode name, url title
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
     ): Boolean {
         val dataList = data.split(", ")
         Log.d("CakesTwix-Debug", data)
         if (dataList[1].toIntOrNull() != null) { // Its ajax list
             val ajax =
-                    fromPlaylistAjax(
-                            "$mainUrl/engine/ajax/playlists.php?news_id=${dataList[1]}&xfield=playlist&user_hash=$dle_login_hash")
+                fromPlaylistAjax(
+                    "$mainUrl/engine/ajax/playlists.php?news_id=${dataList[1]}&xfield=playlist&user_hash=$dle_login_hash"
+                )
 
             // Filter by name and isDub
             ajax
-                    ?.filter { it.name == dataList[0] }
-                    ?.filter { it.urls.isDub == dataList[2].toBoolean() }
-                    ?.forEach {
-                        // Get m3u8 url
-                        with(it) {
-                            when {
-                                it.urls.url.contains("https://tortuga.wtf/vod/") -> {
-                                    M3u8Helper.generateM3u8(
-                                            source = "${it.urls.playerName} (${it.urls.name})",
-                                            streamUrl = AshdiExtractor().ParseM3U8(this.urls.url),
-                                            referer = "https://tortuga.wtf/")
-                                            .last().let(callback)
-                                }
-                                it.urls.url.contains("https://ashdi.vip/vod") -> {
-                                    M3u8Helper.generateM3u8(
-                                            source = "${it.urls.playerName} (${it.urls.name})",
-                                            streamUrl = AshdiExtractor().ParseM3U8(this.urls.url),
-                                            referer = "https://qeruya.cyou")
-                                            .last().let(callback)
-                                }
-                                it.urls.url.contains("https://www.udrop.com") -> {
-                                    callback.invoke(
-                                        newExtractorLink(
-                                            this.urls.url,
-                                            "${it.urls.playerName} (${it.urls.name})",
-                                            this.urls.url,
-                                            ExtractorLinkType.M3U8
-                                        )
+                ?.filter { it.name == dataList[0] }
+                ?.filter { it.urls.isDub == dataList[2].toBoolean() }
+                ?.forEach {
+                    // Get m3u8 url
+                    with(it) {
+                        when {
+                            it.urls.url.contains("https://tortuga.wtf/vod/") -> {
+                                M3u8Helper.generateM3u8(
+                                    source = "${it.urls.playerName} (${it.urls.name})",
+                                    streamUrl = AshdiExtractor().ParseM3U8(this.urls.url),
+                                    referer = "https://tortuga.wtf/"
+                                )
+                                    .last().let(callback)
+                            }
+
+                            it.urls.url.contains("https://ashdi.vip/vod") -> {
+                                M3u8Helper.generateM3u8(
+                                    source = "${it.urls.playerName} (${it.urls.name})",
+                                    streamUrl = AshdiExtractor().ParseM3U8(this.urls.url),
+                                    referer = "https://qeruya.cyou"
+                                )
+                                    .last().let(callback)
+                            }
+
+                            it.urls.url.contains("https://www.udrop.com") -> {
+                                callback.invoke(
+                                    newExtractorLink(
+                                        this.urls.url,
+                                        "${it.urls.playerName} (${it.urls.name})",
+                                        this.urls.url,
+                                        ExtractorLinkType.M3U8
                                     )
-                                }
-                                it.urls.url.contains("https://csst.online/embed/") ||
-                                        it.urls.url.contains("https://monstro.site/embed/") -> {
-                                    csstExtractor().ParseUrl(it.urls.url).split(",").forEach { csstUrl ->
+                                )
+                            }
+
+                            it.urls.url.contains("https://csst.online/embed/") ||
+                                    it.urls.url.contains("https://monstro.site/embed/") -> {
+                                csstExtractor().ParseUrl(it.urls.url).split(",")
+                                    .forEach { csstUrl ->
                                         callback.invoke(
                                             newExtractorLink(
                                                 this.urls.url,
-                                                "${it.urls.playerName} (${it.urls.name}) ${csstUrl.substringBefore("]").drop(1)}",
+                                                "${it.urls.playerName} (${it.urls.name}) ${
+                                                    csstUrl.substringBefore(
+                                                        "]"
+                                                    ).drop(1)
+                                                }",
                                                 csstUrl.substringAfter("]"),
                                                 ExtractorLinkType.M3U8
                                             )
                                         )
                                     }
-                                }
-                                it.urls.url.contains("https://www.mp4upload.com/") -> {
-                                    getExtractorApiFromName("Mp4Upload").getUrl(it.urls.url)?.forEach { extlink ->
+                            }
+
+                            it.urls.url.contains("https://www.mp4upload.com/") -> {
+                                getExtractorApiFromName("Mp4Upload").getUrl(it.urls.url)
+                                    ?.forEach { extlink ->
                                         callback.invoke(
                                             newExtractorLink(
-                                                    extlink.source,
-                                                    "${it.urls.playerName} (${it.urls.name})",
-                                                    extlink.url,
+                                                extlink.source,
+                                                "${it.urls.playerName} (${it.urls.name})",
+                                                extlink.url,
                                             )
                                         )
                                     }
-                                }
-                                else -> {}
                             }
+
+                            else -> {}
                         }
                     }
+                }
         } else {
             val document = app.get(dataList[1]).document
             document.select("script").map { script ->
@@ -271,27 +300,32 @@ class AnitubeinuaProvider : MainAPI() {
                             when {
                                 contains("https://tortuga.wtf/vod/") -> {
                                     M3u8Helper.generateM3u8(
-                                            source = dub.playerName,
-                                            streamUrl = AshdiExtractor().ParseM3U8(this),
-                                            referer = "https://tortuga.wtf/")
-                                            .last().let(callback)
+                                        source = dub.playerName,
+                                        streamUrl = AshdiExtractor().ParseM3U8(this),
+                                        referer = "https://tortuga.wtf/"
+                                    )
+                                        .last().let(callback)
                                 }
+
                                 contains("https://ashdi.vip/vod") -> {
                                     M3u8Helper.generateM3u8(
-                                            source = dub.playerName,
-                                            streamUrl = AshdiExtractor().ParseM3U8(this),
-                                            referer = "https://qeruya.cyou")
-                                            .last().let(callback)
+                                        source = dub.playerName,
+                                        streamUrl = AshdiExtractor().ParseM3U8(this),
+                                        referer = "https://qeruya.cyou"
+                                    )
+                                        .last().let(callback)
                                 }
+
                                 contains("https://www.udrop.com") -> {
                                     callback.invoke(
                                         newExtractorLink(
-                                                dub.playerName,
-                                                name = dub.playerName,
-                                                this,
-                                            )
+                                            dub.playerName,
+                                            name = dub.playerName,
+                                            this,
+                                        )
                                     )
                                 }
+
                                 contains("https://monstro.site/embed/") ||
                                         contains("https://csst.online/embed/") -> {
                                     csstExtractor().ParseUrl(this).split(",").forEach {
@@ -299,23 +333,31 @@ class AnitubeinuaProvider : MainAPI() {
                                             newExtractorLink(
                                                 dub.playerName,
                                                 name =
-                                                "${dub.playerName.replace("\"", "")} ${it.substringBefore("]").drop(1)}",
+                                                    "${
+                                                        dub.playerName.replace(
+                                                            "\"",
+                                                            ""
+                                                        )
+                                                    } ${it.substringBefore("]").drop(1)}",
                                                 it.substringAfter("]"),
                                             )
                                         )
                                     }
                                 }
+
                                 contains("https://www.mp4upload.com/") -> {
-                                    getExtractorApiFromName("Mp4Upload").getUrl(this)?.forEach { extlink ->
-                                        callback.invoke(
-                                            newExtractorLink(
-                                                extlink.source,
-                                                dub.playerName,
-                                                extlink.url,
+                                    getExtractorApiFromName("Mp4Upload").getUrl(this)
+                                        ?.forEach { extlink ->
+                                            callback.invoke(
+                                                newExtractorLink(
+                                                    extlink.source,
+                                                    dub.playerName,
+                                                    extlink.url,
+                                                )
                                             )
-                                        )
-                                    }
+                                        }
                                 }
+
                                 else -> {}
                             }
                         }
@@ -338,7 +380,10 @@ class AnitubeinuaProvider : MainAPI() {
 
     // Thanks to Andro999b
     // https://github.com/Andro999b/movies-telegram-bot/blob/a296c7d4122a25fa70b612e75d741dd55c154640/functions/src/providers/AnitubeUAProvider.ts#L86-L137
-    private suspend fun fromPlaylistAjax(url: String, referer: String = "https://anitube.in.ua/"): List<Ajax>? {
+    private suspend fun fromPlaylistAjax(
+        url: String,
+        referer: String = "https://anitube.in.ua/"
+    ): List<Ajax>? {
         val responseGet = app.get(
             url,
             referer = referer,
@@ -412,15 +457,17 @@ class AnitubeinuaProvider : MainAPI() {
             }
 
             returnEpisodes.add(
-                    Ajax(
-                            episodeId,
-                            element.text(),
-                            Link(
-                                    isDub,
-                                    url,
-                                    audio.toString(),
-                                    playerName,
-                            )))
+                Ajax(
+                    episodeId,
+                    element.text(),
+                    Link(
+                        isDub,
+                        url,
+                        audio.toString(),
+                        playerName,
+                    )
+                )
+            )
         }
 
         return returnEpisodes.toList()
@@ -428,13 +475,14 @@ class AnitubeinuaProvider : MainAPI() {
 
     private fun fromVideoContructor(script: Element): List<videoConstructor> {
         val playerScriptRawJson = script.data().substringAfterLast(".init(").substringBefore(");")
-        val playerEpisodesRawJson = playerScriptRawJson.substringAfter("],").substringBeforeLast(",")
+        val playerEpisodesRawJson =
+            playerScriptRawJson.substringAfter("],").substringBeforeLast(",")
         val playerNamesArray =
-                (playerScriptRawJson.substringBefore("],") + "]")
-                        .dropLast(1)
-                        .drop(1)
-                        .replace("\",\"", ",,,")
-                        .split(",,,")
+            (playerScriptRawJson.substringBefore("],") + "]")
+                .dropLast(1)
+                .drop(1)
+                .replace("\",\"", ",,,")
+                .split(",,,")
         // val numberOfEpisodesInt = playerScriptRawJson.substringAfterLast(",").toIntOrNull()
 
         val jsonEpisodes = tryParseJson<List<List<PlayerJson>>>(playerEpisodesRawJson)!!
@@ -444,11 +492,13 @@ class AnitubeinuaProvider : MainAPI() {
             val playerName = decode(playerNamesArray[index])
             episode.forEach {
                 episodes.add(
-                        videoConstructor(
-                                playerName,
-                                it.name,
-                                extractIntFromString(it.name),
-                                Jsoup.parse(it.code).select("iframe").attr("src")))
+                    videoConstructor(
+                        playerName,
+                        it.name,
+                        extractIntFromString(it.name),
+                        Jsoup.parse(it.code).select("iframe").attr("src")
+                    )
+                )
                 // Log.d("load-debug", "$playerName ${it.name}")
             }
         }

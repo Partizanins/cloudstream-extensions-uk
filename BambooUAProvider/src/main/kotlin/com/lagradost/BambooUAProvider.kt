@@ -17,6 +17,7 @@ import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newAnimeLoadResponse
 import com.lagradost.cloudstream3.newAnimeSearchResponse
+import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -114,7 +115,8 @@ class BambooUAProvider : MainAPI() {
         val document = app.get(url).document
         // Parse info
         // val json = tryParseJson<JSONModel>(document.select("script[type*=json]").html())
-        val gJson = Gson().fromJson(document.select("script[type*=json]").html(), JSONModel::class.java)
+        val gJson =
+            Gson().fromJson(document.select("script[type*=json]").html(), JSONModel::class.java)
         // Log.d("load-debug-json", gJson.graph[0].name)
 
         val title = gJson.graph[0].name
@@ -123,8 +125,8 @@ class BambooUAProvider : MainAPI() {
         val tags = document.select(genresSelector).map { it.text() }
         val year = document.select(yearSelector).text().toIntOrNull()
 
-        val tvType = with(tags){
-            when{
+        val tvType = with(tags) {
+            when {
                 contains("Аніме") -> TvType.Anime
                 contains("Кіно") -> TvType.Movie
                 else -> TvType.AsianDrama
@@ -140,28 +142,31 @@ class BambooUAProvider : MainAPI() {
         val subEpisodes = mutableListOf<Episode>()
         val dubEpisodes = mutableListOf<Episode>()
 
+
         // Parse episodes (sub/dub)
         document.select(".mt-4").forEach {
             // Parse sub
-            if(it.select("h3.my-4").text() == "Субтитри"){
-                it.select("span.play_me").forEach{ episode ->
+            if (it.select("h3.my-4").text() == "Субтитри") {
+                it.select("span.play_me").forEach { episode ->
                     subEpisodes.add(
-                        Episode(
-                            episode.attr("data-file"),
-                            episode.attr("data-title"),
-                            episode = episode.attr("data-title").replace("Серія ","").toIntOrNull(),
-                        )
+                        newEpisode(url) {
+                            data = episode.attr("data-file")
+                            name = episode.attr("data-title")
+                            this.episode =
+                                episode.attr("data-title").replace("Серія ", "").toIntOrNull()
+                        }
                     )
                 }
                 // Parse dub
-            } else if(it.select("h3.my-4").text() == "Озвучення"){
-                it.select("span.play_me").forEach{ episode ->
+            } else if (it.select("h3.my-4").text() == "Озвучення") {
+                it.select("span.play_me").forEach { episode ->
                     dubEpisodes.add(
-                        Episode(
-                            episode.attr("data-file"),
-                            episode.attr("data-title"),
-                            episode = episode.attr("data-title").replace("Серія ","").toIntOrNull(),
-                        )
+                        newEpisode(url) {
+                            data = episode.attr("data-file")
+                            name = episode.attr("data-title")
+                            this.episode =
+                                episode.attr("data-title").replace("Серія ", "").toIntOrNull()
+                        }
                     )
                 }
             }
@@ -169,7 +174,7 @@ class BambooUAProvider : MainAPI() {
 
         // Return to app
         // Parse Episodes as Series
-        return if(tvType != TvType.Movie){
+        return if (tvType != TvType.Movie) {
             newAnimeLoadResponse(title, url, tvType) {
                 this.posterUrl = poster
                 this.year = year
@@ -179,7 +184,7 @@ class BambooUAProvider : MainAPI() {
                 this.addEpisodes(DubStatus.Dubbed, dubEpisodes)
                 this.addEpisodes(DubStatus.Subbed, subEpisodes)
             }
-        } else{
+        } else {
             newMovieLoadResponse(title, url, tvType, url) {
                 this.posterUrl = poster
                 this.year = year
@@ -200,7 +205,7 @@ class BambooUAProvider : MainAPI() {
     ): Boolean {
 
         // Movie
-        if(data.startsWith("https://bambooua.com")){
+        if (data.startsWith("https://bambooua.com")) {
             val document = app.get(data).document
             document.select("span.mr-3").forEach {
                 // Log.d("load-debug", it.attr("data-file"))

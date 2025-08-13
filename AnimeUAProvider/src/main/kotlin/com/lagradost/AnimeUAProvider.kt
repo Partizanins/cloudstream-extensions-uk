@@ -94,13 +94,15 @@ class AnimeUAProvider : MainAPI() {
 
         val title = document.selectFirst(titleLoadSelector)?.text()?.trim().toString()
         val engTitle = document.select(".pmovie__original-title").text()
-        val poster = mainUrl + document.selectFirst("div.page__subcol-side $posterSelector")?.attr("data-src")
+        val poster = mainUrl + document.selectFirst("div.page__subcol-side $posterSelector")
+            ?.attr("data-src")
         val tags = document.select(genresSelector).map { it.text() }
-        val year = document.select(yearSelector).text().substringAfter(": ").substringBefore("-").toIntOrNull()
+        val year = document.select(yearSelector).text().substringAfter(": ").substringBefore("-")
+            .toIntOrNull()
         val playerUrl = document.select(playerSelector).attr("data-src")
 
-        val tvType = with(tags){
-            when{
+        val tvType = with(tags) {
+            when {
                 playerUrl.contains("/serial/") -> TvType.Anime
                 contains("Повнометражка") -> TvType.AnimeMovie
                 contains("OVA") -> TvType.OVA
@@ -127,16 +129,16 @@ class AnimeUAProvider : MainAPI() {
                 .substringBefore("\',")
 
             tryParseJson<List<PlayerJson>>(playerRawJson)?.map { dubs -> // Dubs
-                for(season in dubs.folder){                              // Seasons
-                    for(episode in season.folder){                       // Episodes
+                for (season in dubs.folder) {                              // Seasons
+                    for (episode in season.folder) {                       // Episodes
                         episodes.add(
-                            Episode(
-                                "${season.title}, ${episode.title}, $playerUrl",
-                                episode.title,
-                                season.title.replace(" Сезон ","").toIntOrNull(),
-                                episode.title.replace("Серія ","").toIntOrNull(),
-                                episode.poster
-                            )
+                            newEpisode(url) {
+                                data = "${season.title}, ${episode.title}, $playerUrl"
+                                name = episode.title
+                                this.season = season.title.replace(" Сезон ", "").toIntOrNull()
+                                this.episode = episode.title.replace("Серія ", "").toIntOrNull()
+                                posterUrl = episode.poster
+                            }
                         )
                     }
                 }
@@ -174,7 +176,7 @@ class AnimeUAProvider : MainAPI() {
         val dataList = data.split(", ")
 
         // Its film, parse one m3u8
-        if(dataList.size == 2){
+        if (dataList.size == 2) {
             val m3u8Url = app.get(dataList[1]).document.select("script").html()
                 .substringAfterLast("file:\"")
                 .substringBefore("\",")
@@ -192,10 +194,10 @@ class AnimeUAProvider : MainAPI() {
             .substringBefore("\',")
 
         tryParseJson<List<PlayerJson>>(playerRawJson)?.map { dubs ->   // Dubs
-            for(season in dubs.folder){                                // Seasons
-                if(season.title == dataList[0]){
-                    for(episode in season.folder){                     // Episodes
-                        if(episode.title == dataList[1]){
+            for (season in dubs.folder) {                                // Seasons
+                if (season.title == dataList[0]) {
+                    for (episode in season.folder) {                     // Episodes
+                        if (episode.title == dataList[1]) {
                             // Add as source
                             M3u8Helper.generateM3u8(
                                 source = dubs.title,
