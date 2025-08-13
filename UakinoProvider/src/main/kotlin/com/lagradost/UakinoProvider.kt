@@ -74,11 +74,11 @@ class UakinoProvider : MainAPI() {
             app.post(
                 url = mainUrl,
                 data =
-                mapOf(
-                    "do" to "search",
-                    "subaction" to "search",
-                    "story" to query.replace(" ", "+")
-                )
+                    mapOf(
+                        "do" to "search",
+                        "subaction" to "search",
+                        "story" to query.replace(" ", "+")
+                    )
             )
                 .document
 
@@ -111,8 +111,9 @@ class UakinoProvider : MainAPI() {
                     contains("Жанр:") -> tags = metadata.select(".fi-desc").text().split(" , ")
                     contains("Актори:") -> actors = metadata.select(".fi-desc").text().split(", ")
                     contains("") -> {
-                        if (!metadata.select(".fi-label").select("img").isEmpty()){
-                            rating = metadata.select(".fi-desc").text().substringBefore("/").toRatingInt()
+                        if (!metadata.select(".fi-label").select("img").isEmpty()) {
+                            rating = metadata.select(".fi-desc").text().substringBefore("/")
+                                .toRatingInt()
                         }
                     }
                 }
@@ -159,29 +160,29 @@ class UakinoProvider : MainAPI() {
             val episodes =
                 app.get(
                     "$mainUrl/engine/ajax/playlists.php?news_id=$id&xfield=playlist&time=${Date().time}",
-                        headers = mapOf(
-                            "Referer" to mainUrl,
-                            "X-Requested-With" to "XMLHttpRequest",
-                            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; rv:126.0) Gecko/20100101 Firefox/126.0",
-                )
+                    headers = mapOf(
+                        "Referer" to mainUrl,
+                        "X-Requested-With" to "XMLHttpRequest",
+                        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; rv:126.0) Gecko/20100101 Firefox/126.0",
+                    )
                 )
                     .parsedSafe<Responses>()
                     ?.response
                     .let {
-                        Jsoup.parse(it.toString()).select("div.playlists-videos li").mapNotNull {
-                                eps ->
-                            val href =
-                                "$mainUrl/engine/ajax/playlists.php?news_id=$id&xfield=playlist&time=${Date().time}"
-                            val name = eps.text().trim() // Серія 1
-                            if (href.isNotEmpty()) {
-                                Episode(
-                                    "$href,$name", // link, Серія 1
-                                    name,
-                                )
-                            } else {
-                                null
+                        Jsoup.parse(it.toString()).select("div.playlists-videos li")
+                            .mapNotNull { eps ->
+                                val href =
+                                    "$mainUrl/engine/ajax/playlists.php?news_id=$id&xfield=playlist&time=${Date().time}"
+                                val name = eps.text().trim() // Серія 1
+                                if (href.isNotEmpty()) {
+                                    newEpisode(url) {
+                                        "$href,$name"// link, Серія 1
+                                        name
+                                    }
+                                } else {
+                                    null
+                                }
                             }
-                        }
                     }
             newAnimeLoadResponse(title, url, tvType) {
                 this.posterUrl = poster
@@ -223,11 +224,11 @@ class UakinoProvider : MainAPI() {
             val responseGet =
                 app.get(
                     "$mainUrl/engine/ajax/playlists.php?news_id=$id&xfield=playlist&time=${Date().time}",
-                        headers = mapOf(
-                                "Referer" to mainUrl,
-                                "X-Requested-With" to "XMLHttpRequest",
-                                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; rv:126.0) Gecko/20100101 Firefox/126.0",
-                        )
+                    headers = mapOf(
+                        "Referer" to mainUrl,
+                        "X-Requested-With" to "XMLHttpRequest",
+                        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; rv:126.0) Gecko/20100101 Firefox/126.0",
+                    )
                 )
                     .parsedSafe<Responses>()
             if (responseGet?.success == true) { // Its serial
@@ -276,11 +277,11 @@ class UakinoProvider : MainAPI() {
                             // Add as source
                             M3u8Helper.generateM3u8(
                                 source =
-                                document
-                                    .selectFirst("h1 span.solototle")
-                                    ?.text()
-                                    ?.trim()
-                                    .toString(),
+                                    document
+                                        .selectFirst("h1 span.solototle")
+                                        ?.text()
+                                        ?.trim()
+                                        .toString(),
                                 streamUrl = m3uLink,
                                 referer = "https://ashdi.vip/"
                             )
@@ -292,12 +293,14 @@ class UakinoProvider : MainAPI() {
             return true
         }
 
-        val responseGet = app.get(dataList[0],
-                headers = mapOf(
-                        "Referer" to mainUrl,
-                        "X-Requested-With" to "XMLHttpRequest",
-                        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; rv:126.0) Gecko/20100101 Firefox/126.0",
-                )).parsedSafe<Responses>() // ajax link
+        val responseGet = app.get(
+            dataList[0],
+            headers = mapOf(
+                "Referer" to mainUrl,
+                "X-Requested-With" to "XMLHttpRequest",
+                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; rv:126.0) Gecko/20100101 Firefox/126.0",
+            )
+        ).parsedSafe<Responses>() // ajax link
         if (responseGet?.success == true) { // Its serial
             responseGet?.response?.let {
                 Jsoup.parse(it)
@@ -346,11 +349,11 @@ class UakinoProvider : MainAPI() {
                         // Add as source
                         M3u8Helper.generateM3u8(
                             source =
-                            document
-                                .selectFirst("h1 span.solototle")
-                                ?.text()
-                                ?.trim()
-                                .toString(),
+                                document
+                                    .selectFirst("h1 span.solototle")
+                                    ?.text()
+                                    ?.trim()
+                                    .toString(),
                             streamUrl = m3uLink,
                             referer = "https://ashdi.vip/"
                         )

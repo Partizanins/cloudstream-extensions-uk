@@ -21,6 +21,7 @@ import com.lagradost.cloudstream3.base64Encode
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newAnimeLoadResponse
 import com.lagradost.cloudstream3.newAnimeSearchResponse
+import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.toRatingInt
@@ -71,12 +72,13 @@ class UASerialsProProvider : MainAPI() {
     // private val titleLoadSelector = ".page__subcol-main h1"
     // private val genresSelector = "li span:contains(Жанр:) a"
     private val yearSelector = "a[href*=https://uaserials.pro/year/]"
+
     // private val playerSelector = "iframe"
     private val descriptionSelector = ".full-text"
     private val ratingSelector = ".short-rate-in"
 
-    private val listAESModel = object : TypeToken<List<AESPlayerDecodedModel>>() { }.type
-    private val listDecodedJSONModel = object : TypeToken<List<DecodedJSON>>() { }.type
+    private val listAESModel = object : TypeToken<List<AESPlayerDecodedModel>>() {}.type
+    private val listDecodedJSONModel = object : TypeToken<List<DecodedJSON>>() {}.type
 
     override suspend fun getMainPage(
         page: Int,
@@ -131,20 +133,24 @@ class UASerialsProProvider : MainAPI() {
         val poster = document.selectFirst("div.fimg.img-wide img")?.attr("src")
         val tags = mutableListOf<String>()
         val actors = mutableListOf<String>()
-        val year = document.select(yearSelector).text().substringAfter(": ").substringBefore("-").toIntOrNull()
+        val year = document.select(yearSelector).text().substringAfter(": ").substringBefore("-")
+            .toIntOrNull()
         val rating = document.selectFirst(ratingSelector)!!.text().toRatingInt()
 
         document.select(".short-list li").forEach { menu ->
-            with(menu){
-                when{
-                    this.select("span").text() == "Жанр:" -> menu.select("a").map { tags.add(it.text()) }
-                    this.select("span").text() == "Актори:" -> menu.select("#text").text().split(", ").map { actors.add(it) }
+            with(menu) {
+                when {
+                    this.select("span").text() == "Жанр:" -> menu.select("a")
+                        .map { tags.add(it.text()) }
+
+                    this.select("span").text() == "Актори:" -> menu.select("#text").text()
+                        .split(", ").map { actors.add(it) }
                 }
             }
         }
 
-        val tvType = with(tags){
-            when{
+        val tvType = with(tags) {
+            when {
                 contains("Серіал") -> TvType.TvSeries
                 contains("Мультсеріал") -> TvType.Cartoon
                 contains("Фільм") -> TvType.Movie
@@ -178,17 +184,17 @@ class UASerialsProProvider : MainAPI() {
             val episodes = mutableListOf<Episode>()
 
             seriesJson[0].seasons.forEachIndexed { seasonsIndex, season ->
-                    season.episodes.forEachIndexed { episodesIndex, episode ->
-                        episodes.add(
-                            Episode(
-                                "$seasonsIndex, $episodesIndex, $url",
-                                episode.title,
-                                seasonsIndex + 1,
-                                episodesIndex + 1,
-                            )
-                        )
-                    }
+                season.episodes.forEachIndexed { episodesIndex, episode ->
+                    episodes.add(
+                        newEpisode(url) {
+                            "$seasonsIndex, $episodesIndex, $url"
+                            episode.title
+                            seasonsIndex + 1
+                            episodesIndex + 1
+                        }
+                    )
                 }
+            }
 
             newAnimeLoadResponse(title, url, tvType) {
                 this.posterUrl = poster
@@ -222,7 +228,7 @@ class UASerialsProProvider : MainAPI() {
     ): Boolean {
         val dataList = data.split(", ")
         // Movie
-        if(dataList.size == 2){
+        if (dataList.size == 2) {
             val html = app.get(dataList[1]).document.select("script").html()
             val m3u8Url = when {
                 "file: \"" in html -> html.substringAfter("file: \"").substringBefore("\"")
@@ -259,12 +265,12 @@ class UASerialsProProvider : MainAPI() {
                     val matchResult = regex.find(it)
                     matchResult?.groups?.get(1)?.value.toString()
                 }
-                M3u8Helper.generateM3u8(
-                    source = episode.title,
-                    streamUrl = m3u8Url.replace("https://", "http://"),
-                    referer = "https://tortuga.wtf/"
-                ).last().let(callback)
-            }
+            M3u8Helper.generateM3u8(
+                source = episode.title,
+                streamUrl = m3u8Url.replace("https://", "http://"),
+                referer = "https://tortuga.wtf/"
+            ).last().let(callback)
+        }
         return true
     }
 

@@ -82,7 +82,8 @@ class KinoVezhaProvider : MainAPI() {
         // Log.d("load-debug", tags.toString())
         val year = document.select(".inner-page__list li")[0].select("a").text().toIntOrNull()
 
-        val tvType = if(tags.contains("Мультсеріали") or tags.contains("Серіали")) TvType.TvSeries else TvType.Movie
+        val tvType =
+            if (tags.contains("Мультсеріали") or tags.contains("Серіали")) TvType.TvSeries else TvType.Movie
         val description = document.select("div.inner-page__text").text()
         // val author = someInfo.select("strong:contains(Студія:)").next().html()
         val rating = document.selectFirst(".dd-imdb-colours")?.text().toRatingInt()
@@ -102,13 +103,13 @@ class KinoVezhaProvider : MainAPI() {
                 for (episode in season.folder) {                                     // Seasons
                     for (dubs in episode.folder) {                              // Episodes
                         episodes.add(
-                            Episode(
-                                "${season.title}, ${episode.title}, $playerUrl",
-                                episode.title,
-                                season.season,
-                                episode.number,
+                            newEpisode(url) {
+                                "${season.title}, ${episode.title}, $playerUrl"
+                                episode.title
+                                season.season
+                                episode.number
                                 dubs.poster
-                            )
+                            }
                         )
                     }
                 }
@@ -142,7 +143,7 @@ class KinoVezhaProvider : MainAPI() {
         val dataList = data.split(", ")
 
         // Its film, parse one m3u8
-        if(dataList.size == 2){
+        if (dataList.size == 2) {
             val m3u8Url = app.get(dataList[1]).document.select("script").html()
                 .substringAfterLast("file: \"")
                 .substringBefore("\",")

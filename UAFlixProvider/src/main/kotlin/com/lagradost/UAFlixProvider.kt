@@ -18,6 +18,7 @@ import com.lagradost.cloudstream3.fixUrl
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newAnimeLoadResponse
 import com.lagradost.cloudstream3.newAnimeSearchResponse
+import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.toRatingInt
@@ -56,6 +57,7 @@ class UAFlixProvider : MainAPI() {
     // Main Page
     private val animeSelector = ".video-item"
     private val titleSelector = ".vi-img"
+
     // private val engTitleSelector = "div.th-title-oname.truncate"
     private val hrefSelector = titleSelector
     private val posterSelector = ".img-resp-h img"
@@ -114,7 +116,7 @@ class UAFlixProvider : MainAPI() {
         val title = document.select(".fright h1").text().trim().replace("дивитись онлайн", "")
         val engTitle = document.select("span.eng-rus").text()
         var poster = fixUrl(document.select(".img-box img").attr("data-src"))
-        if(poster.isNullOrBlank()){
+        if (poster.isNullOrBlank()) {
             poster = fixUrl(document.select(".img-box img").attr("src"))
         }
         val tags = mutableListOf<String>()
@@ -122,17 +124,22 @@ class UAFlixProvider : MainAPI() {
         var year = "f".toIntOrNull()
 
         document.select(".fcols4 .finfo li").forEach { menu ->
-            with(menu){
-                when{
-                    this.select("span")[0].text() == "Жанр:" -> menu.select("span[itemprop=genre]").map { tags.add(it.text()) }
-                    this.select("span")[0].text() == "В ролях:" -> menu.select("span[itemprop=actor]").map { actors.add(it.text()) }
-                    this.select("span")[0].text() == "Рік виходу:" -> year = menu.select(".year").text().toIntOrNull()
+            with(menu) {
+                when {
+                    this.select("span")[0].text() == "Жанр:" -> menu.select("span[itemprop=genre]")
+                        .map { tags.add(it.text()) }
+
+                    this.select("span")[0].text() == "В ролях:" -> menu.select("span[itemprop=actor]")
+                        .map { actors.add(it.text()) }
+
+                    this.select("span")[0].text() == "Рік виходу:" -> year =
+                        menu.select(".year").text().toIntOrNull()
                 }
             }
         }
 
-        var tvType = with(url){
-            when{
+        var tvType = with(url) {
+            when {
                 contains("serials") -> TvType.TvSeries
                 contains("serials/multseial") -> TvType.Cartoon
                 contains("film") -> TvType.Movie
@@ -147,43 +154,50 @@ class UAFlixProvider : MainAPI() {
         // Parse episodes
         val episodes = mutableListOf<Episode>()
         val playerUrl = document.select(".video-box iframe").attr("src")
-        if(playerUrl.isNullOrBlank()){ // Need parse episode list from site
-            val pagination = if (document.select(".pagination li").size == 0) 1 else document.select(".pagination li").size
-            for(i in 1..pagination){
+        if (playerUrl.isNullOrBlank()) { // Need parse episode list from site
+            val pagination =
+                if (document.select(".pagination li").size == 0) 1 else document.select(".pagination li").size
+            for (i in 1..pagination) {
                 var episodesList = document
-                if(i != 1){
+                if (i != 1) {
                     episodesList = app.get("$url?page=$i").document
                 }
 
                 episodesList.select(".video-item").map { video_item ->
                     episodes.add(
-                        Episode(
-                                video_item.select(".vi-img").attr("href"),
-                                video_item.select(".vi-rate").text(),
-                                extractIntsFromString(video_item.select(".vi-title").text())[0].value.toIntOrNull(),
-                                extractIntsFromString(video_item.select(".vi-title").text())[1].value.toIntOrNull(),
-                                posterUrl = fixUrl(video_item.select(".img-resp-h img").attr("data-src"))
-                        )
+                        newEpisode(url) {
+                            video_item.select(".vi-img").attr("href")
+                            video_item.select(".vi-rate").text()
+                            extractIntsFromString(
+                                video_item.select(".vi-title").text()
+                            )[0].value.toIntOrNull()
+                            extractIntsFromString(
+                                video_item.select(".vi-title").text()
+                            )[1].value.toIntOrNull()
+                            posterUrl =
+                                fixUrl(video_item.select(".img-resp-h img").attr("data-src"))
+                        }
                     )
                 }
             }
 
         } else { // Player in site
-            val playerRawJson = app.get(playerUrl, referer = "https://uafix.net").document.select("script").html()
+            val playerRawJson =
+                app.get(playerUrl, referer = "https://uafix.net").document.select("script").html()
                     .substringAfterLast("file:\'")
                     .substringBefore("\',")
 
             tryParseJson<List<PlayerJson>>(playerRawJson)?.map { dubs -> // Dubs
-                for(season in dubs.folder){                              // Seasons
-                    for(episode in season.folder){                       // Episodes
+                for (season in dubs.folder) {                              // Seasons
+                    for (episode in season.folder) {                       // Episodes
                         episodes.add(
-                            Episode(
-                                    "${season.title}, ${episode.title}, $playerUrl",
-                                    episode.title,
-                                    season.title.replace(" Сезон ","").toIntOrNull(),
-                                    episode.title.replace("Серія ","").toIntOrNull(),
-                                    episode.poster
-                            )
+                            newEpisode(url) {
+                                "${season.title}, ${episode.title}, $playerUrl"
+                                episode.title
+                                season.title.replace(" Сезон ", "").toIntOrNull()
+                                episode.title.replace("Серія ", "").toIntOrNull()
+                                episode.poster
+                            }
                         )
                     }
                 }
@@ -227,36 +241,39 @@ class UAFlixProvider : MainAPI() {
     ): Boolean {
         val dataList = data.split(", ")
 
-        if(dataList.size == 1){
+        if (dataList.size == 1) {
             var playerUrl = app.get(data).document.select(".video-box iframe").attr("src")
-            if(playerUrl.startsWith("//")){
+            if (playerUrl.startsWith("//")) {
                 playerUrl = "https:$playerUrl"
             }
-            if(playerUrl.contains("/vod/")){
-                var playerRawJson = app.get(playerUrl,
-                        headers = mapOf(
-                                "Referer" to "https://uafix.net/",
-                        )).document.select("script").html()
-                        .substringAfterLast("file:\"")
-                        .substringBefore("\",")
+            if (playerUrl.contains("/vod/")) {
+                var playerRawJson = app.get(
+                    playerUrl,
+                    headers = mapOf(
+                        "Referer" to "https://uafix.net/",
+                    )
+                ).document.select("script").html()
+                    .substringAfterLast("file:\"")
+                    .substringBefore("\",")
 
                 M3u8Helper.generateM3u8(
-                        source = "UAFlix",
-                        streamUrl = playerRawJson,
-                        referer = "https://tortuga.wtf/"
+                    source = "UAFlix",
+                    streamUrl = playerRawJson,
+                    referer = "https://tortuga.wtf/"
                 ).last().let(callback)
                 return true
             }
-            val playerRawJson = app.get(playerUrl, referer = "https://uafix.net").document.select("script").html()
+            val playerRawJson =
+                app.get(playerUrl, referer = "https://uafix.net").document.select("script").html()
                     .substringAfterLast("file:\'")
                     .substringBefore("\',")
             tryParseJson<List<PlayerJson>>(playerRawJson)?.map { dubs ->   // Dubs
-                for(season in dubs.folder){                                // Seasons
+                for (season in dubs.folder) {                                // Seasons
                     // Add as source
                     M3u8Helper.generateM3u8(
-                            source = dubs.title,
-                            streamUrl = dubs.folder[0].folder[0].file,
-                            referer = "https://tortuga.wtf/"
+                        source = dubs.title,
+                        streamUrl = dubs.folder[0].folder[0].file,
+                        referer = "https://tortuga.wtf/"
                     ).last().let(callback)
                 }
             }
@@ -265,19 +282,20 @@ class UAFlixProvider : MainAPI() {
         }
 
 
-        val playerRawJson = app.get(dataList[2], referer = "https://uafix.net").document.select("script").html()
+        val playerRawJson =
+            app.get(dataList[2], referer = "https://uafix.net").document.select("script").html()
                 .substringAfterLast("file:\'")
                 .substringBefore("\',")
         tryParseJson<List<PlayerJson>>(playerRawJson)?.map { dubs ->   // Dubs
-            for(season in dubs.folder){                                // Seasons
-                if(season.title == dataList[0]){
-                    for(episode in season.folder){                     // Episodes
-                        if(episode.title == dataList[1]){
+            for (season in dubs.folder) {                                // Seasons
+                if (season.title == dataList[0]) {
+                    for (episode in season.folder) {                     // Episodes
+                        if (episode.title == dataList[1]) {
                             // Add as source
                             M3u8Helper.generateM3u8(
-                                    source = dubs.title,
-                                    streamUrl = episode.file.replace("https://", "http://"),
-                                    referer = "https://tortuga.wtf/"
+                                source = dubs.title,
+                                streamUrl = episode.file.replace("https://", "http://"),
+                                referer = "https://tortuga.wtf/"
                             ).last().let(callback)
                         }
                     }

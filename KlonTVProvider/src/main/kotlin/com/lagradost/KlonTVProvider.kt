@@ -96,7 +96,9 @@ class KlonTVProvider : MainAPI() {
     override suspend fun load(url: String): LoadResponse {
         val document = app.get(url).document
         // Parse info
-        val titleJson = tryParseJson<GeneralInfo>(document.selectFirst("script[type=application/ld+json]")?.html())!!
+        val titleJson = tryParseJson<GeneralInfo>(
+            document.selectFirst("script[type=application/ld+json]")?.html()
+        )!!
 
         // JSON
         val title = titleJson.name
@@ -109,8 +111,8 @@ class KlonTVProvider : MainAPI() {
         val year = document.selectFirst(yearSelector)?.text()?.toIntOrNull()
         val playerUrl = document.select(playerSelector).attr("data-src")
 
-        var tvType = with(tags){
-            when{
+        var tvType = with(tags) {
+            when {
                 contains("Серіали") -> TvType.TvSeries
                 contains("Фільми") -> TvType.Movie
                 contains("Аніме") -> TvType.Anime
@@ -121,7 +123,9 @@ class KlonTVProvider : MainAPI() {
         }
 
         // https://klon.tv/filmy/1783-rik-ta-morti.html not movie
-        if(playerUrl.contains("/serial/")){ tvType = TvType.TvSeries }
+        if (playerUrl.contains("/serial/")) {
+            tvType = TvType.TvSeries
+        }
         val description = Jsoup.parse(titleJson.description).text()
 
         val recommendations = document.select(recommendationsSelector).map {
@@ -137,16 +141,16 @@ class KlonTVProvider : MainAPI() {
                 .substringBefore("\',")
 
             tryParseJson<List<PlayerJson>>(playerRawJson)?.map { dubs -> // Dubs
-                for(season in dubs.folder){                              // Seasons
-                    for(episode in season.folder){                       // Episodes
+                for (season in dubs.folder) {                              // Seasons
+                    for (episode in season.folder) {                       // Episodes
                         episodes.add(
-                            Episode(
-                                "${season.title}, ${episode.title}, $playerUrl",
-                                episode.title,
-                                season.title.replace(" Сезон ","").toIntOrNull(),
-                                episode.title.replace("Серія ","").toIntOrNull(),
+                            newEpisode(url) {
+                                "${season.title}, ${episode.title}, $playerUrl"
+                                episode.title
+                                season.title.replace(" Сезон ", "").toIntOrNull()
+                                episode.title.replace("Серія ", "").toIntOrNull()
                                 episode.poster
-                            )
+                            }
                         )
                     }
                 }
@@ -184,7 +188,7 @@ class KlonTVProvider : MainAPI() {
         val dataList = data.split(", ")
 
         // Its film, parse one m3u8
-        if(dataList.size == 2){
+        if (dataList.size == 2) {
             val m3u8Url = app.get(dataList[1]).document.select("script").html()
                 .substringAfterLast("file:\"")
                 .substringBefore("\",")
@@ -195,10 +199,10 @@ class KlonTVProvider : MainAPI() {
             ).last().let(callback)
 
             val subtitleUrl = app.get(dataList[1]).document.select("script").html()
-                    .substringAfterLast("subtitle: \"")
-                    .substringBefore("\",")
+                .substringAfterLast("subtitle: \"")
+                .substringBefore("\",")
 
-            if(subtitleUrl.isNullOrBlank()) return true
+            if (subtitleUrl.isNullOrBlank()) return true
             subtitleCallback.invoke(
                 SubtitleFile(
                     subtitleUrl.substringAfterLast("[").substringBefore("]"),

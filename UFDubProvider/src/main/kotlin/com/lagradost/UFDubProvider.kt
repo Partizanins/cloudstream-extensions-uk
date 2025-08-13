@@ -34,7 +34,7 @@ class UFDubProvider : MainAPI() {
         "$mainUrl/cartoon-serial/page/" to "Мультсеріали",
         "$mainUrl/dorama/page/" to "Дорами",
 
-    )
+        )
 
     override suspend fun getMainPage(
         page: Int,
@@ -87,29 +87,33 @@ class UFDubProvider : MainAPI() {
         val title = document.select("h1.top-title").text()
         val poster = mainUrl + document.select("div.f-poster img").attr("src")
         val tags = mutableListOf<String>()
-        val year = someInfo.select("strong:contains(Рік випуску аніме:)").next().html().toIntOrNull()
+        val year =
+            someInfo.select("strong:contains(Рік випуску аніме:)").next().html().toIntOrNull()
 
         val description = document.select("div.full-text p").text()
         // val author = someInfo.select("strong:contains(Студія:)").next().html()
         val rating = toRatingInt(document.select(".fp-rate"))
 
         val recommendations = document.select(".rel").map {
-            newMovieSearchResponse(it.select(".img-box img").attr("alt"), it.attr("href"), TvType.Anime) {
+            newMovieSearchResponse(
+                it.select(".img-box img").attr("alt"),
+                it.attr("href"),
+                TvType.Anime
+            ) {
                 this.posterUrl = "$mainUrl${it.select(".img-box img").attr("src")}"
             }
         }
 
         someInfo.select(".full-info div.fi-col-item")
-            .forEach {
-                    ele ->
+            .forEach { ele ->
                 when (ele.select("span").text()) {
                     //"Студія:" -> tags = ele.select("a").text().split(" / ")
                     "Жанр:" -> ele.select("a").map { tags.add(it.text()) }
                 }
             }
 
-        val tvType = with(tags){
-            when{
+        val tvType = with(tags) {
+            when {
                 contains("Фільми") -> TvType.Movie
                 contains("Мультсеріали") -> TvType.Cartoon
                 contains("Серіали") -> TvType.TvSeries
@@ -139,12 +143,12 @@ class UFDubProvider : MainAPI() {
                 val url = item.value.dropLast(1)
                 val seriya = url.substringAfter("Seriya=", "").substringBefore("&")
                 episodes.add(
-                    Episode(
-                        url,
+                    newEpisode(url) {
+                        url
                         seriya
-                    )
+                    }
                 )
-        }
+            }
 
         return newTvSeriesLoadResponse(title, url, tvType, episodes) {
             this.posterUrl = poster
@@ -168,11 +172,11 @@ class UFDubProvider : MainAPI() {
         val m3u8Url = app.get(data).url
 
         // Add as source
-        callback(newExtractorLink(m3u8Url,"UFDub", m3u8Url, ExtractorLinkType.VIDEO))
+        callback(newExtractorLink(m3u8Url, "UFDub", m3u8Url, ExtractorLinkType.VIDEO))
         return true
     }
 
-    private fun decode(input: String): String{
+    private fun decode(input: String): String {
         // Decoded string, thanks to Secozzi
         val hexRegex = Regex("\\\\u([0-9a-fA-F]{4})")
         return hexRegex.replace(input) { matchResult ->

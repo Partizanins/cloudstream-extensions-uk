@@ -64,7 +64,7 @@ open class UASerialProvider(url: String, name: String) : MainAPI() {
         val searchJson = Gson().fromJson(searchResult, SearchModel::class.java)
 
         return searchJson.movies.map {
-           newMovieSearchResponse(it.name, it.link, TvType.Movie) {
+            newMovieSearchResponse(it.name, it.link, TvType.Movie) {
                 this.posterUrl = "$mainUrl${it.poster}"
             }
         }
@@ -74,10 +74,14 @@ open class UASerialProvider(url: String, name: String) : MainAPI() {
     override suspend fun load(url: String): LoadResponse {
         val document = app.get(url).document
         // Log.d("CakesTwix-Debug", document.select("script[type=application/ld+json]").html())
-        val titleJson = Gson().fromJson(document.select("script[type*=json]").html(), GeneralInfo::class.java)
+        val titleJson =
+            Gson().fromJson(document.select("script[type*=json]").html(), GeneralInfo::class.java)
 
-        if(titleJson.type == "Movie"){
-            val titleJsonMovie = Gson().fromJson(document.select("script[type*=json]").html(), GeneralInfoMovie::class.java)
+        if (titleJson.type == "Movie") {
+            val titleJsonMovie = Gson().fromJson(
+                document.select("script[type*=json]").html(),
+                GeneralInfoMovie::class.java
+            )
             // Parse info for Serials
             val title = titleJsonMovie.name
             val poster = mainUrl + document.selectFirst("img.cover")?.attr("src")
@@ -114,15 +118,19 @@ open class UASerialProvider(url: String, name: String) : MainAPI() {
             titleJson.partOfTVSeries.containsSeason.map { season ->
                 val documentSeason = app.get(season.url).document
                 season.episode.map { episode ->
-                    var episodeName = documentSeason.select("div[data-episode-id=${episode.episodeNumber}] div.name").text().replaceFirstChar { it.uppercase() }
-                    if (episodeName.isBlank()) { episodeName = episode.name.replaceFirstChar { it.uppercase() } }
+                    var episodeName =
+                        documentSeason.select("div[data-episode-id=${episode.episodeNumber}] div.name")
+                            .text().replaceFirstChar { it.uppercase() }
+                    if (episodeName.isBlank()) {
+                        episodeName = episode.name.replaceFirstChar { it.uppercase() }
+                    }
                     episodes.add(
-                        Episode(
-                            "${season.url}, ${episode.episodeNumber}",
-                            episodeName,
-                            season.seasonNumber,
+                        newEpisode(url) {
+                            "${season.url}, ${episode.episodeNumber}"
+                            episodeName
+                            season.seasonNumber
                             episode.episodeNumber.split("-")[0].toIntOrNull()
-                        )
+                        }
                     )
                 }
             }
@@ -148,12 +156,16 @@ open class UASerialProvider(url: String, name: String) : MainAPI() {
     ): Boolean {
         val dataList = data.split(", ")
         // Its film, parse one m3u8
-        if(dataList.size == 1){
-            val movieHTML = app.get(data).document.select(".player .player__background .video-holder .video iframe").attr("src")
+        if (dataList.size == 1) {
+            val movieHTML =
+                app.get(data).document.select(".player .player__background .video-holder .video iframe")
+                    .attr("src")
             // Log.d("CakesTwix-Debug", movieHTML)
 
             // https://uaserial.tv/embed/happiness-for-beginners/season-1/episode-1
-            val onlyPlayerHTML = app.get(mainUrl + movieHTML).document.select(".player .voices__wrap option").attr("value")
+            val onlyPlayerHTML =
+                app.get(mainUrl + movieHTML).document.select(".player .voices__wrap option")
+                    .attr("value")
             // Log.d("CakesTwix-Debug", onlyPlayerHTML)
 
             val m3u8Url = app.get(onlyPlayerHTML).document.select("script").html()
@@ -169,10 +181,13 @@ open class UASerialProvider(url: String, name: String) : MainAPI() {
             return true
         }
 
-        val document = app.get(mainUrl + app.get(dataList[0]).document.select("option[data-series-number=${dataList[1]}]").attr("value")).document
-        document.select(".voices__wrap").map{ player ->
+        val document = app.get(
+            mainUrl + app.get(dataList[0]).document.select("option[data-series-number=${dataList[1]}]")
+                .attr("value")
+        ).document
+        document.select(".voices__wrap").map { player ->
             // Log.d("load-debug", player.attr("data-player-id")) // Player name
-            player.select("select.voices__select option").map{ dub ->
+            player.select("select.voices__select option").map { dub ->
                 // Log.d("load-debug", dub.text()) // Name
                 // Log.d("load-debug", dub.attr("value"))// Url
 
@@ -180,7 +195,7 @@ open class UASerialProvider(url: String, name: String) : MainAPI() {
                     .substringAfterLast("file:\"")
                     .substringBefore("\",")
 
-                if (player.attr("data-player-id") == "spilberg"){
+                if (player.attr("data-player-id") == "spilberg") {
                     m3u8Url = app.get(dub.attr("value")).document.select("script").html()
                         .substringAfterLast(" manifest: '")
                         .substringBefore("',")
@@ -188,7 +203,9 @@ open class UASerialProvider(url: String, name: String) : MainAPI() {
 
                 if (!m3u8Url.startsWith("http")) return@map
                 M3u8Helper.generateM3u8(
-                    source = "${dub.text()} (${player.attr("data-player-id").replaceFirstChar { it.uppercase() }})",
+                    source = "${dub.text()} (${
+                        player.attr("data-player-id").replaceFirstChar { it.uppercase() }
+                    })",
                     streamUrl = m3u8Url,
                     referer = "https://tortuga.wtf/"
                 ).last().let(callback)

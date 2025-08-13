@@ -18,6 +18,7 @@ import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newAnimeLoadResponse
 import com.lagradost.cloudstream3.newAnimeSearchResponse
+import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -112,14 +113,14 @@ class TeleportalProvider : MainAPI() {
                 if(season.seasonGallery.items.isNullOrEmpty()) return@map
                 season.seasonGallery.items.forEach { episode ->
                     episodes.add(
-                        Episode(
-                            "$url/${it.seasonSlug}/${episode.videoSlug}",
-                            episode.title,
-                            extractIntFromString(season.seasonTitle),
-                            extractIntFromString(episode.seriesTitle),
-                            "$mainUrl${episode.image}",
-                            description = episode.tizer,
-                        )
+                        newEpisode(url) {
+                            "$url/${it.seasonSlug}/${episode.videoSlug}"
+                            episode.title
+                            extractIntFromString(season.seasonTitle)
+                            extractIntFromString(episode.seriesTitle)
+                            "$mainUrl${episode.image}"
+                            description = episode.tizer
+                        }
                     )
                 }
             }
