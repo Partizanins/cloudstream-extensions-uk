@@ -133,7 +133,7 @@ class BambooUAProvider : MainAPI() {
             }
         }
         val description = gJson.graph[0].description
-        // val rating = document.select(ratingSelector).next().text().toRatingInt()
+//         val rating = document.select(ratingSelector).next().text().toRatingInt()
 
         val recommendations = document.select(".favorites-slider li.slide-item").map {
             it.toSearchResponse()
@@ -190,7 +190,7 @@ class BambooUAProvider : MainAPI() {
                 this.year = year
                 this.plot = description
                 this.tags = tags
-                this.rating = rating
+//                this.rating = rating
                 this.recommendations = recommendations
             }
         }

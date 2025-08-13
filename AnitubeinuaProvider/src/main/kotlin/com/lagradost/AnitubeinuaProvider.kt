@@ -167,11 +167,11 @@ class AnitubeinuaProvider : MainAPI() {
                             varEpisodeNumber = episodesList.last().episodeNumber?.plus(1)
                         }
                         dubEpisodes.add(
-                            Episode(
-                                "$varEpisodeNumber, $url",
-                                episode.episodeName,
-                                episode = varEpisodeNumber,
-                            )
+                            newEpisode(url) {
+                                data = "$varEpisodeNumber, $url"
+                                name = episode.episodeName
+                                this.episode = varEpisodeNumber
+                            }
                         )
                     }
                 }

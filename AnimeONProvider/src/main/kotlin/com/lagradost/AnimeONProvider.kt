@@ -68,7 +68,7 @@ class AnimeONProvider : MainAPI() {
 
     // Done
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        if (!request.data.contains("pageIndex") && page != 1) return HomePageResponse(emptyList())
+        if (!request.data.contains("pageIndex") && page != 1) return newHomePageResponse(emptyList())
         val document = app.get(
             request.data.format(page),
             headers = mapOf(
@@ -208,7 +208,7 @@ class AnimeONProvider : MainAPI() {
                 this.showStatus = showStatus
                 this.duration = extractIntFromString(animeJSON.episodeTime)
                 this.year = animeJSON.releaseDate.toIntOrNull()
-                this.rating = animeJSON.rating.toRatingInt()
+//                this.rating = animeJSON.rating.toRatingInt()
                 addEpisodes(DubStatus.Dubbed, episodes)
                 addMalId(animeJSON.malId.toIntOrNull())
             }
@@ -232,7 +232,7 @@ class AnimeONProvider : MainAPI() {
                 this.duration = extractIntFromString(animeJSON.episodeTime)
                 this.year = animeJSON.releaseDate.toIntOrNull()
                 this.backgroundPosterUrl = backgroundImage
-                this.rating = animeJSON.rating.toRatingInt()
+//                this.rating = animeJSON.rating.toRatingInt()
                 addMalId(animeJSON.malId.toIntOrNull())
             }
         }
