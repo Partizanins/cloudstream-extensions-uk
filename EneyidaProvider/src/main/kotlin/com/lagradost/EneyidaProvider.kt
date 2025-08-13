@@ -108,13 +108,13 @@ class EneyidaProvider : MainAPI() {
                 for (episode in season.folder) {                                     // Seasons
                     for (dubs in episode.folder) {                              // Episodes
                         episodes.add(
-                            Episode(
-                                "${season.title}, ${episode.title}, $playerUrl",
-                                episode.title,
-                                season.title.replace(" сезон","").toIntOrNull(),
-                                episode.title.replace(" серія","").toIntOrNull(),
+                            newEpisode(url) {
+                                "${season.title}, ${episode.title}, $playerUrl"
+                                episode.title
+                                season.title.replace(" сезон", "").toIntOrNull()
+                                episode.title.replace(" серія", "").toIntOrNull()
                                 dubs.poster
-                            )
+                            }
                         )
                     }
                 }

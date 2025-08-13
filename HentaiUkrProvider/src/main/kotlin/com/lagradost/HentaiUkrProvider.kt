@@ -13,6 +13,7 @@ import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newAnimeSearchResponse
+import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -35,7 +36,7 @@ class HentaiUkrProvider : MainAPI() {
         TvType.NSFW,
     )
 
-    private val listCfgJSONModel = object : TypeToken<List<CfgModel>>() { }.type
+    private val listCfgJSONModel = object : TypeToken<List<CfgModel>>() {}.type
     private val objectsUrl = "$mainUrl/search/objects.json"
 
     // Sections
@@ -52,7 +53,7 @@ class HentaiUkrProvider : MainAPI() {
         // Log.d("CakesTwix-Debug", document)
         val parsedJSON = Gson().fromJson(document, ObjectsModel::class.java).video
 
-        
+
         val homeList = parsedJSON.map {
             newAnimeSearchResponse(it.name, "$mainUrl${it.url}", TvType.NSFW) {
                 this.posterUrl = "$mainUrl${it.thumb}"
@@ -69,7 +70,7 @@ class HentaiUkrProvider : MainAPI() {
         val document = app.get(objectsUrl).text
         val hentai = mutableListOf<SearchResponse>()
         Gson().fromJson(document, ObjectsModel::class.java).video.map {
-            if(it.name.contains(query, true)){
+            if (it.name.contains(query, true)) {
                 hentai.add(newAnimeSearchResponse(it.name, "$mainUrl${it.url}", TvType.NSFW) {
                     this.posterUrl = "$mainUrl${it.thumb}"
                     this.otherName = it.orig_name
@@ -83,7 +84,8 @@ class HentaiUkrProvider : MainAPI() {
 
     // Detailed information
     override suspend fun load(url: String): LoadResponse {
-        val parsedJSON = Gson().fromJson<List<CfgModel>>(app.get(url + "plur.cfg.json").text, listCfgJSONModel)
+        val parsedJSON =
+            Gson().fromJson<List<CfgModel>>(app.get(url + "plur.cfg.json").text, listCfgJSONModel)
         val document = app.get(url).document
 
 
@@ -91,20 +93,21 @@ class HentaiUkrProvider : MainAPI() {
         val episodes = mutableListOf<Episode>()
         parsedJSON.forEachIndexed { index, cfgModel ->
             episodes.add(
-                Episode(
-                    "$url, $index",
-                    "Серія ${index + 1}",
-                    episode = index + 1,
+                newEpisode(url) {
+                    "$url, $index"
+                    "Серія ${index + 1}"
+                    episode = index + 1
                     posterUrl = "$mainUrl${cfgModel.poster}"
-                )
+                }
             )
         }
         return newTvSeriesLoadResponse(
             document.select("#name-ukr").text(), url, TvType.NSFW, episodes
-        ){
+        ) {
             this.posterUrl = "$mainUrl${document.select("#img-placeholder img").attr("src")}"
             this.plot = document.select("#about").text()
-            this.year = document.select("div[id*=year]").text().substringAfterLast(": ").toIntOrNull()
+            this.year =
+                document.select("div[id*=year]").text().substringAfterLast(": ").toIntOrNull()
             this.tags = document.select("div.tag").map { it.select("div.name").text() }
         }
     }
@@ -118,18 +121,28 @@ class HentaiUkrProvider : MainAPI() {
     ): Boolean {
         val dataList = data.split(", ")
 
-        val parsedJSON = Gson().fromJson<List<CfgModel>>(app.get("${dataList[0]}plur.cfg.json").text, listCfgJSONModel)[dataList[1].toInt()]
+        val parsedJSON = Gson().fromJson<List<CfgModel>>(
+            app.get("${dataList[0]}plur.cfg.json").text,
+            listCfgJSONModel
+        )[dataList[1].toInt()]
         parsedJSON.sources.forEach {
             // Add as source
-            val quality = with(it.size){
-                when{
+            val quality = with(it.size) {
+                when {
                     this == 1080 -> Qualities.P1080.value
                     this == 720 -> Qualities.P720.value
                     this == 480 -> Qualities.P480.value
                     else -> Qualities.Unknown.value
                 }
             }
-            callback(newExtractorLink("${dataList[0]}${it.src}","Серія ${dataList[1] + 1}", "${dataList[0]}${it.src}", ExtractorLinkType.VIDEO))
+            callback(
+                newExtractorLink(
+                    "${dataList[0]}${it.src}",
+                    "Серія ${dataList[1] + 1}",
+                    "${dataList[0]}${it.src}",
+                    ExtractorLinkType.VIDEO
+                )
+            )
         }
         return true
     }
